@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema Indústria | Portal de Estrutura Organizacional & Automação PPTX</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            cni: { dark: '#002B49', DEFAULT: '#003865', light: '#005493', accent: '#0095D9' },
+            sesi: { DEFAULT: '#008542', light: '#52AE32' },
+            senai: { DEFAULT: '#005CAA', orange: '#F37021' },
+            iel: { DEFAULT: '#0095D9' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#F0F4F8] text-slate-800 min-h-screen flex flex-col font-sans">
+
+  <!-- ===================================================================== -->
+  <!-- MODAL DE LOGIN INSTITUCIONAL (SISTEMA INDÚSTRIA - VERCEL AUTH)        -->
+  <!-- ===================================================================== -->
+  <div id="login-overlay" class="fixed inset-0 z-50 bg-cni-dark/95 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+      <div class="h-1.5 w-full flex">
+        <div class="w-1/4 bg-[#003865]"></div>
+        <div class="w-1/4 bg-[#008542]"></div>
+        <div class="w-1/4 bg-[#F37021]"></div>
+        <div class="w-1/4 bg-[#0095D9]"></div>
+      </div>
+      <div class="p-8 space-y-6">
+        <div class="text-center space-y-1">
+          <div class="inline-flex items-center gap-2 bg-sky-50 border border-sky-100 px-3 py-1 rounded-full">
+            <span class="w-2 h-2 rounded-full bg-cni-accent"></span>
+            <span class="text-[10px] font-extrabold uppercase tracking-widest text-cni">
+              Acesso Restrito · SDH & People Analytics
+            </span>
+          </div>
+          <h2 class="text-2xl font-extrabold text-cni-dark pt-2">Sistema Indústria</h2>
+          <p class="text-xs text-slate-500">Observatório de Estrutura Organizacional & Automação PPTX</p>
+        </div>
+
+        <form onsubmit="handleLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Utilizador</label>
+            <input id="login-user" type="text" required autocomplete="username" placeholder="Ex: admin.sdh"
+                   class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-cni focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Palavra-passe</label>
+            <input id="login-pass" type="password" required autocomplete="current-password" placeholder="••••••••••••"
+                   class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-cni focus:outline-none" />
+          </div>
+          <div id="login-error" class="hidden text-xs text-rose-600 font-semibold text-center bg-rose-50 border border-rose-200 p-2.5 rounded-lg"></div>
+          <button id="btn-login-submit" type="submit"
+                  class="w-full bg-cni hover:bg-cni-light text-white font-bold py-3 rounded-lg shadow-md transition text-sm">
+            Autenticar e Entrar no Portal
+          </button>
+        </form>
+
+        <div class="text-center border-t border-slate-100 pt-4">
+          <span class="text-[11px] text-slate-400">CNI · SESI · SENAI · IEL — Governança de Dados</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL DE UPLOAD MANUAL DE BASE (.XLSX / .CSV)                         -->
+  <!-- ===================================================================== -->
+  <div id="data-upload-modal" class="fixed inset-0 z-40 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden">
+      <div class="bg-cni px-6 py-4 text-white flex justify-between items-center">
+        <div>
+          <span class="text-[10px] uppercase tracking-widest text-sky-300 font-bold block">Contingência / Atualização Rápida</span>
+          <h3 class="text-base font-bold">Carregar Nova Extração do Databricks (.xlsx ou .csv)</h3>
+        </div>
+        <button onclick="toggleDataUploadModal(false)" class="text-white/70 hover:text-white text-lg font-bold">✕</button>
+      </div>
+
+      <form onsubmit="handleCustomDataUpload(event)" class="p-6 space-y-4">
+        <div class="bg-sky-50 border border-sky-100 rounded-lg p-3.5 text-xs text-slate-700 space-y-1.5">
+          <div class="font-bold text-cni">Como funciona:</div>
+          <p>Caso o Databricks não esteja conectado por Token na Vercel, execute a query SQL no Databricks, exporte o resultado como <b>Excel (.xlsx)</b> ou <b>CSV (.csv)</b> e anexe abaixo.</p>
+          <p class="text-[11px] text-slate-500 font-mono">Colunas esperadas: SEGMENTO_DES, AREA_DES, UNIDADE_DES, count(CODIGO_CONTRATO)</p>
+        </div>
+
+        <div class="border-2 border-dashed border-cni/30 rounded-xl p-4 bg-slate-50">
+          <label class="block text-xs font-bold uppercase text-cni mb-2">Selecione o arquivo (.xlsx ou .csv)</label>
+          <input id="custom-data-file-input" type="file" accept=".xlsx,.xls,.csv" required
+                 class="w-full text-xs text-slate-700 file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cni file:text-white hover:file:bg-cni-light cursor-pointer" />
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" onclick="toggleDataUploadModal(false)"
+                  class="px-4 py-2 rounded-lg text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">
+            Cancelar
+          </button>
+          <button id="btn-upload-data-submit" type="submit"
+                  class="px-5 py-2 rounded-lg text-xs font-bold text-white bg-sesi hover:bg-emerald-700 shadow transition">
+            Carregar e Atualizar Portal
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Faixa Institucional Superior Multi-Marca -->
+  <div class="h-1.5 w-full flex">
+    <div class="w-1/4 bg-[#003865]" title="CNI"></div>
+    <div class="w-1/4 bg-[#008542]" title="SESI"></div>
+    <div class="w-1/4 bg-[#F37021]" title="SENAI"></div>
+    <div class="w-1/4 bg-[#0095D9]" title="IEL"></div>
+  </div>
+
+  <!-- Cabeçalho Padrão Sistema Indústria -->
+  <header class="bg-cni-dark text-white shadow-lg">
+    <div class="max-w-[1480px] mx-auto px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-4">
+        <div class="bg-white text-cni font-extrabold px-3.5 py-2 rounded shadow-inner flex flex-col items-center leading-none">
+          <span class="text-[10px] tracking-widest text-slate-500">SISTEMA</span>
+          <span class="text-sm tracking-tight text-cni-dark">INDÚSTRIA</span>
+        </div>
+        <div class="border-l border-white/20 pl-4">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-bold uppercase tracking-widest text-cni-accent">People Analytics & Data Engineering</span>
+            <span class="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white/80">CNI · SESI · SENAI · IEL</span>
+          </div>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight mt-0.5">
+            Observatório de Estrutura Organizacional & Automação PPTX
+          </h1>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2.5 bg-cni/60 p-2 rounded-lg border border-white/10">
+        <div class="flex items-center gap-2 px-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="datasource-badge" class="text-xs font-medium text-slate-200">Conectando...</span>
+        </div>
+        <div class="flex items-center bg-cni-dark rounded border border-white/15 px-2.5 py-1">
+          <span class="text-[10px] uppercase text-slate-400 mr-2 font-semibold">Ref:</span>
+          <input id="ref-date-input" type="text" value="2026-10-01"
+                 class="bg-transparent text-xs font-mono text-white w-24 focus:outline-none text-center" />
+        </div>
+        <button onclick="loadHeadcount(true)" title="Tentar sincronizar direto do Databricks"
+                class="bg-cni-accent hover:bg-sky-500 text-white text-xs font-semibold px-3 py-1.5 rounded shadow-sm transition">
+          Sincronizar
+        </button>
+        <button id="btn-open-data-modal" onclick="toggleDataUploadModal(true)" title="Subir planilha .xlsx ou .csv extraída do Databricks"
+                class="bg-senai-orange hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow-sm transition flex items-center gap-1">
+          <span>📤</span> Subir Base (.xlsx/.csv)
+        </button>
+
+        <!-- Identificação do Utilizador Autenticado + Botão Sair -->
+        <div id="user-badge-box" class="hidden flex items-center gap-2 border-l border-white/20 pl-3 ml-1">
+          <span id="logged-user-label" class="text-xs font-bold text-sky-200"></span>
+          <button onclick="handleLogout()" title="Terminar Sessão"
+                  class="bg-rose-600/80 hover:bg-rose-600 text-white text-[11px] font-bold px-2.5 py-1 rounded transition">
+            Sair
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sub-barra de Navegação -->
+  <div class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-20">
+    <div class="max-w-[1480px] mx-auto px-6 flex justify-between items-center">
+      <div class="flex gap-8">
+        <button id="tab-btn-explorer" onclick="switchTab('explorer')"
+                class="py-3.5 border-b-2 border-cni text-cni font-bold text-sm flex items-center gap-2 transition">
+          <span>🏛️</span> Mapa Organizacional Interativo (Headcount)
+        </button>
+        <button id="tab-btn-updater" onclick="switchTab('updater')"
+                class="py-3.5 border-b-2 border-transparent text-slate-500 hover:text-cni font-semibold text-sm flex items-center gap-2 transition">
+          <span>⚡</span> Estúdio de Automação & Edição PowerPoint (.PPTX)
+        </button>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="exportFilteredToCSV()"
+                class="text-xs font-bold text-cni bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+          <span>📥</span> Exportar Visão (.CSV)
+        </button>
+        <span id="header-ref-label" class="hidden md:inline-block text-xs font-bold uppercase tracking-wider bg-sky-50 border border-sky-200 text-cni px-3.5 py-1 rounded-full">
+          Base Outubro 2026
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conteúdo Principal -->
+  <main class="max-w-[1480px] mx-auto px-6 py-6 flex-1 w-full">
+
+    <!-- ================================================================= -->
+    <!-- ABA 1: MAPA ORGANIZACIONAL INTERATIVO (ESTILO ORGANOGRAMA)        -->
+    <!-- ================================================================= -->
+    <section id="tab-explorer" class="space-y-6">
+
+      <!-- KPIs Macro com Percentual de Participação -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div onclick="resetFilters()" class="cursor-pointer bg-gradient-to-br from-cni-dark to-cni text-white p-4 rounded-xl shadow-md flex flex-col justify-between">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-sky-300 font-bold">Quadro Total Ativo</span>
+            <span class="text-[10px] bg-white/15 px-2 py-0.5 rounded">100%</span>
+          </div>
+          <div class="flex items-baseline justify-between mt-3">
+            <span id="kpi-total-hc" class="text-3xl font-extrabold">--</span>
+            <span id="kpi-total-units" class="text-xs text-sky-200 font-medium">-- unidades</span>
+          </div>
+        </div>
+
+        <div onclick="quickFilterEntity('CNI')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-cni transition">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Diretorias CNI</span>
+            <span id="pct-cni" class="text-[11px] font-bold text-cni bg-sky-50 px-2 py-0.5 rounded">--%</span>
+          </div>
+          <span id="kpi-cni" class="text-2xl font-extrabold text-cni mt-2 block">--</span>
+          <span class="text-[11px] text-slate-400">7 Diretorias + Compliance</span>
+        </div>
+
+        <div onclick="quickFilterEntity('SENAI')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-senai-orange transition">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">SENAI-DN</span>
+            <span id="pct-senai" class="text-[11px] font-bold text-senai-orange bg-orange-50 px-2 py-0.5 rounded">--%</span>
+          </div>
+          <span id="kpi-senai" class="text-2xl font-extrabold text-senai mt-2 block">--</span>
+          <span class="text-[11px] text-slate-400">Educação, Inovação & Gestão</span>
+        </div>
+
+        <div onclick="quickFilterEntity('SESI')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-sesi transition">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">SESI-DN</span>
+            <span id="pct-sesi" class="text-[11px] font-bold text-sesi bg-emerald-50 px-2 py-0.5 rounded">--%</span>
+          </div>
+          <span id="kpi-sesi" class="text-2xl font-extrabold text-sesi mt-2 block">--</span>
+          <span class="text-[11px] text-slate-400">Saúde, Cultura & Educação</span>
+        </div>
+
+        <div onclick="quickFilterEntity('IEL')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-iel transition">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">IEL / NC</span>
+            <span id="pct-iel" class="text-[11px] font-bold text-iel bg-sky-50 px-2 py-0.5 rounded">--%</span>
+          </div>
+          <span id="kpi-iel" class="text-2xl font-extrabold text-iel mt-2 block">--</span>
+          <span class="text-[11px] text-slate-400">Carreiras & Gestão Inovação</span>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros Inteligentes -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+        <div class="md:col-span-4">
+          <label class="block text-xs font-bold uppercase text-cni mb-1.5">1. Filtrar Diretoria / Entidade</label>
+          <select id="filter-segmento" onchange="onSegmentoChange()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-cni focus:outline-none">
+            <option value="TODOS">Todas as Diretorias e Entidades (Visão Completa)</option>
+          </select>
+        </div>
+        <div class="md:col-span-4">
+          <label class="block text-xs font-bold uppercase text-cni mb-1.5">2. Filtrar Superintendência (Área)</label>
+          <select id="filter-area" onchange="loadHeadcount(false)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-cni focus:outline-none">
+            <option value="TODAS">Todas as Superintendências</option>
+          </select>
+        </div>
+        <div class="md:col-span-3">
+          <label class="block text-xs font-bold uppercase text-cni mb-1.5">3. Pesquisar Unidade ou Gestor</label>
+          <input id="filter-search" type="text" oninput="loadHeadcount(false)" placeholder="Ex: Observatório, TI, Samantha..."
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cni focus:outline-none" />
+        </div>
+        <div class="md:col-span-1">
+          <button onclick="resetFilters()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-lg text-sm transition">
+            Resetar
+          </button>
+        </div>
+      </div>
+
+      <!-- Árvore Visual no Estilo Organograma -->
+      <div id="hierarchy-container" class="space-y-6"></div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- ABA 2: ESTÚDIO DE AUTOMAÇÃO E EDIÇÃO WEB DO POWERPOINT            -->
+    <!-- ================================================================= -->
+    <section id="tab-updater" class="hidden space-y-6">
+
+      <!-- Card de Upload + Opção de Auto-Layout -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-cni px-6 py-4 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <h2 class="text-base font-bold">Estúdio de Atualização Cirúrgica & Auto-Layout de Organogramas (.PPTX)</h2>
+            <p class="text-xs text-white/80 mt-0.5">
+              Atualiza headcounts, renomeia áreas, recalcula subtotais/totais automaticamente quando há edição manual e alinha colunas no slide.
+            </p>
+          </div>
+          <label class="flex items-center gap-2 bg-white/10 px-3.5 py-1.5 rounded-lg cursor-pointer text-xs font-semibold">
+            <input id="chk-auto-layout" type="checkbox" checked class="accent-emerald-400 w-4 h-4" />
+            <span>Ativar Auto-Layout Inteligente (Ocultar caixas 0 e nivelar colunas)</span>
+          </label>
+        </div>
+
+        <form id="pptx-upload-form" onsubmit="handlePptxUpdate(event)" class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            <div class="md:col-span-2 border-2 border-dashed border-cni/30 bg-sky-50/40 rounded-xl p-4 flex flex-col justify-center">
+              <div class="flex justify-between items-center mb-2">
+                <label class="block text-xs font-bold uppercase text-cni">
+                  Apresentação PowerPoint Base (.pptx)
+                </label>
+                <span id="active-data-source-pill" class="text-[11px] font-semibold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
+                  Usando dados sincronizados no Portal
+                </span>
+              </div>
+              <input id="pptx-file" type="file" accept=".pptx" required
+                     class="w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cni file:text-white hover:file:bg-cni-light cursor-pointer" />
+            </div>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Tag de Data Base nos 11 Slides</label>
+                <input id="pptx-ref-label" type="text" value="Base Outubro 2026" required
+                       class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-cni" />
+              </div>
+              <button id="btn-submit-pptx" type="submit"
+                      class="w-full bg-sesi hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg shadow transition flex justify-center items-center gap-2 text-sm">
+                <span>⚡</span> Processar e Gerar .PPTX Atualizado
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Painel de Resultados + Split View -->
+      <div id="audit-report-panel" class="hidden space-y-5">
+
+        <!-- KPIs de Validação + Notas de Auto-Layout + Botão Download -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-sesi space-y-4">
+          <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 w-full md:w-auto">
+              <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase block">Slides Validados</span>
+                <span id="rep-slides" class="text-xl font-extrabold text-cni">11 / 11</span>
+              </div>
+              <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase block">Total Geral CNI (Recalculado)</span>
+                <span id="rep-total-cni" class="text-xl font-extrabold text-cni-accent">938</span>
+              </div>
+              <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase block">Elementos Atualizados</span>
+                <span id="rep-updated" class="text-xl font-extrabold text-sesi">--</span>
+              </div>
+              <div>
+                <span class="text-[11px] font-bold text-slate-400 uppercase block">Caixas Desativadas (0)</span>
+                <span id="rep-conflicts" class="text-xl font-extrabold text-senai-orange">--</span>
+              </div>
+            </div>
+
+            <button id="btn-download-result"
+                    class="w-full md:w-auto bg-cni hover:bg-cni-light text-white font-bold px-6 py-3 rounded-lg shadow-md transition flex items-center justify-center gap-2 text-sm">
+              <span>⬇️</span> Baixar Apresentação Atualizada (.pptx)
+            </button>
+          </div>
+
+          <div id="layout-notes-box" class="hidden bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-900 space-y-1"></div>
+        </div>
+
+        <!-- SPLIT VIEW: INVENTÁRIO VISUAL ESQUERDA (8/12) | EDITOR WEB DIREITA (4/12) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+          <!-- COLUNA ESQUERDA: Cartões Comparativos (Antes -> Depois) -->
+          <div class="lg:col-span-8 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-5 py-4 bg-slate-100 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+              <div>
+                <h3 class="font-bold text-xs uppercase tracking-wider text-cni">
+                  Inventário Auditável de Modificações (Comparativo Visual Antes ➔ Depois)
+                </h3>
+                <p class="text-[11px] text-slate-500 mt-0.5">
+                  Filtre por Slide ou tipo de mudança e clique em <b>"✏️ Editar"</b> para ajustar gestor, área ou headcount.
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <select id="audit-slide-filter" onchange="renderAuditTable()" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-cni">
+                  <option value="TODOS">Todos os Slides (1 a 11)</option>
+                  <option value="1">Slide 1 · Macroestrutura CNI</option>
+                  <option value="2">Slide 2 · Governança Interna e Externa</option>
+                  <option value="3">Slide 3 · Diretoria Jurídica</option>
+                  <option value="4">Slide 4 · Relações Institucionais (DRI)</option>
+                  <option value="5">Slide 5 · Desenv. Industrial (DDI)</option>
+                  <option value="6">Slide 6 · Diretoria de Comunicação</option>
+                  <option value="7">Slide 7 · Diretoria Corporativa</option>
+                  <option value="8">Slide 8 · SESI-DN</option>
+                  <option value="9">Slide 9 · SENAI-DN</option>
+                  <option value="10">Slide 10 · IEL/NC</option>
+                  <option value="11">Slide 11 · Compliance e Integridade</option>
+                </select>
+                <select id="audit-status-filter" onchange="renderAuditTable()" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-medium">
+                  <option value="APENAS_ALTERADOS">Apenas Elementos Modificados</option>
+                  <option value="TODOS">Mostrar Todos (Incluindo Inalterados)</option>
+                  <option value="NOVA_CAIXA_CRIADA_PADRAO_PPT">🟢 Novas Caixas Clonadas</option>
+                  <option value="NOME_E_NUMERO_ATUALIZADOS">🟣 Áreas / Gestores Editados</option>
+                  <option value="NUMERO_ATUALIZADO">🔵 Números / Subtotais Atualizados</option>
+                  <option value="UNIDADE_SEM_CONTRATOS_NO_BANCO">🟠 Caixas Desativadas (0)</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="audit-cards-container" class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto p-4 space-y-2.5"></div>
+          </div>
+
+          <!-- COLUNA DIREITA: Estúdio Interativo de Edição Web -->
+          <div class="lg:col-span-4 bg-white rounded-xl shadow-md border-2 border-cni/20 overflow-hidden sticky top-16">
+            <div class="bg-cni-dark text-white px-5 py-3.5 flex justify-between items-center">
+              <div>
+                <span class="text-[10px] uppercase tracking-widest text-cni-accent font-bold block">Edição em Tempo Real</span>
+                <h3 class="font-bold text-sm">Editor de Caixas, Gestores & Headcount</h3>
+              </div>
+              <span id="override-count-badge" class="bg-senai-orange text-white text-xs font-extrabold px-2.5 py-0.5 rounded-full">
+                0 ajustes
+              </span>
+            </div>
+
+            <div class="p-5 space-y-4">
+              <div class="bg-sky-50 border border-sky-100 rounded-lg p-3 text-[11px] text-cni leading-relaxed">
+                💡 <b>Recálculo em Cascata Ativo:</b> Quando altera o headcount de uma gerência aqui, o subtotal da Superintendência, o total da Diretoria e o Total Geral da CNI são recalculados automaticamente!
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Slide (1 a 11)</label>
+                  <input id="edit-slide-idx" type="number" min="1" max="11" placeholder="Ex: 5"
+                         class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-cni" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Shape ID (Nome | Badge)</label>
+                  <input id="edit-shape-id" type="text" placeholder="Ex: 29.30 | 29.31"
+                         class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono" />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Nome da Área / Unidade</label>
+                <input id="edit-area-name" type="text" placeholder="Ex: Gerência de Desenvolvimento Produtivo"
+                       class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-medium" />
+              </div>
+
+              <div class="grid grid-cols-3 gap-3">
+                <div class="col-span-2">
+                  <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Nome do Gestor (Entre Parênteses)</label>
+                  <input id="edit-manager-name" type="text" placeholder="Ex: (Samantha Cunha)"
+                         class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-medium" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Headcount</label>
+                  <input id="edit-headcount" type="number" min="0" placeholder="Ex: 22"
+                         class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-cni" />
+                </div>
+              </div>
+
+              <button type="button" onclick="addManualOverride()"
+                      class="w-full bg-cni-accent hover:bg-sky-600 text-white font-bold py-2.5 px-4 rounded-lg text-xs shadow-sm transition">
+                + Guardar Ajuste na Fila Web
+              </button>
+
+              <div class="border-t border-slate-200 pt-3">
+                <div class="flex justify-between items-center mb-2">
+                  <span class="text-[11px] font-bold uppercase text-slate-500">Fila de Edições Manuais Ativas</span>
+                  <button type="button" onclick="clearManualOverrides()" class="text-[11px] text-rose-600 hover:underline font-semibold">
+                    Limpar fila
+                  </button>
+                </div>
+                <div id="overrides-list" class="space-y-2 max-h-40 overflow-y-auto text-xs text-slate-500 italic">
+                  Nenhuma edição manual adicionada.
+                </div>
+              </div>
+
+              <button type="button" onclick="handlePptxUpdate(null)"
+                      class="w-full bg-sesi hover:bg-emerald-700 text-white font-extrabold py-3 px-4 rounded-lg shadow-md transition flex justify-center items-center gap-2 text-xs uppercase tracking-wider">
+                <span>🔄</span> Aplicar Ajustes e Re-gerar PPTX
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Rodapé Institucional -->
+  <footer class="bg-white border-t border-slate-200 mt-12 py-4">
+    <div class="max-w-[1480px] mx-auto px-6 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-400">
+      <span>Sistema Indústria · Confederação Nacional da Indústria (CNI) · Superintendência de Desenvolvimento Humano (SDH)</span>
+      <span>People Analytics & Data Engineering</span>
+    </div>
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- JAVASCRIPT COMPLETO INTEGRADO                                         -->
+  <!-- ===================================================================== -->
+  <script>
+    let currentAuditChanges = [];
+    let manualOverrides = [];
+    let fullHierarchyCache = null;
+    let lastFilteredHierarchy = {};
+    let currentUserRole = 'ADMIN';
+    let currentUploadedDataFile = null; // Guarda o .xlsx/.csv enviado na sessão para uso stateless na Vercel
+
+    function getEntityHeaderStyle(segmentoName) {
+      if (segmentoName === 'SESI') return 'bg-[#008542] border-l-4 border-[#52AE32]';
+      if (segmentoName === 'SENAI') return 'bg-[#005CAA] border-l-4 border-[#F37021]';
+      if (segmentoName === 'IEL') return 'bg-[#0095D9] border-l-4 border-sky-300';
+      return 'bg-[#003865] border-l-4 border-[#0095D9]';
+    }
+
+    function toggleDataUploadModal(show) {
+      if (show && currentUserRole === 'VIEWER') {
+        alert('Apenas perfis ADMIN ou EDITOR podem subir uma nova base de dados.');
+        return;
+      }
+      document.getElementById('data-upload-modal').classList.toggle('hidden', !show);
+    }
+
+    async function handleCustomDataUpload(event) {
+      event.preventDefault();
+      const fileInput = document.getElementById('custom-data-file-input');
+      const refDate = document.getElementById('ref-date-input').value;
+      const btn = document.getElementById('btn-upload-data-submit');
+
+      if (!fileInput.files.length) return;
+      const selectedFile = fileInput.files[0];
+
+      const formData = new FormData();
+      formData.append('data_file', selectedFile);
+      formData.append('reference_date', refDate);
+
+      btn.disabled = true;
+      btn.textContent = 'Processando Planilha...';
+
+      try {
+        const res = await fetch('/api/upload-headcount-data', { method: 'POST', body: formData });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || 'Erro ao carregar planilha.');
+
+        currentUploadedDataFile = selectedFile;
+        fullHierarchyCache = null;
+        document.getElementById('active-data-source-pill').textContent = `Base Ativa: ${selectedFile.name} (${json.total_headcount} contratos)`;
+        toggleDataUploadModal(false);
+        await loadHeadcount(false);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Carregar e Atualizar Portal';
+      }
+    }
+
+    function switchTab(tab) {
+      if (tab === 'updater' && currentUserRole === 'VIEWER') {
+        alert('O seu perfil (VIEWER) possui permissão exclusiva para visualização de Headcount.');
+        return;
+      }
+      document.getElementById('tab-explorer').classList.toggle('hidden', tab !== 'explorer');
+      document.getElementById('tab-updater').classList.toggle('hidden', tab !== 'updater');
+      document.getElementById('tab-btn-explorer').className = tab === 'explorer'
+        ? 'py-3.5 border-b-2 border-cni text-cni font-bold text-sm flex items-center gap-2 transition'
+        : 'py-3.5 border-b-2 border-transparent text-slate-500 hover:text-cni font-semibold text-sm flex items-center gap-2 transition';
+      document.getElementById('tab-btn-updater').className = tab === 'updater'
+        ? 'py-3.5 border-b-2 border-cni text-cni font-bold text-sm flex items-center gap-2 transition'
+        : 'py-3.5 border-b-2 border-transparent text-slate-500 hover:text-cni font-semibold text-sm flex items-center gap-2 transition';
+    }
+
+    function onSegmentoChange() {
+      document.getElementById('filter-area').value = 'TODAS';
+      loadHeadcount(false);
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-segmento').value = 'TODOS';
+      document.getElementById('filter-area').value = 'TODAS';
+      document.getElementById('filter-search').value = '';
+      loadHeadcount(false);
+    }
+
+    function quickFilterEntity(entity) {
+      const segSelect = document.getElementById('filter-segmento');
+      if (entity === 'CNI') {
+        segSelect.value = 'TODOS';
+        document.getElementById('filter-search').value = 'Diretoria';
+      } else {
+        document.getElementById('filter-search').value = '';
+        segSelect.value = entity;
+      }
+      document.getElementById('filter-area').value = 'TODAS';
+      loadHeadcount(false);
+    }
+
+    async function loadHeadcount(forceRefresh = false) {
+      const refDate = document.getElementById('ref-date-input').value;
+      const seg = document.getElementById('filter-segmento').value;
+      const area = document.getElementById('filter-area').value;
+      const search = document.getElementById('filter-search').value;
+
+      if (forceRefresh) {
+        currentUploadedDataFile = null;
+      }
+
+      const params = new URLSearchParams({
+        reference_date: refDate,
+        segmento: seg,
+        area: area,
+        search: search,
+        refresh: forceRefresh
+      });
+
+      const res = await fetch(`/api/headcount?${params.toString()}`);
+      if (res.status === 401) {
+        document.getElementById('login-overlay').classList.remove('hidden');
+        return;
+      }
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.detail || 'Erro ao consultar dados de Headcount.');
+        return;
+      }
+
+      document.getElementById('datasource-badge').textContent = json.source;
+      document.getElementById('active-data-source-pill').textContent = `Fonte Ativa: ${json.source}`;
+      if (json.default_label) {
+        document.getElementById('header-ref-label').textContent = json.default_label;
+      }
+
+      const data = json.data;
+      lastFilteredHierarchy = data.hierarchy || {};
+      document.getElementById('kpi-total-hc').textContent = data.total_headcount;
+      document.getElementById('kpi-total-units').textContent = `${data.total_unidades} unidades`;
+
+      if (!fullHierarchyCache || forceRefresh) {
+        fullHierarchyCache = data.hierarchy;
+        updateEntityMacroKpis(fullHierarchyCache);
+
+        const segSelect = document.getElementById('filter-segmento');
+        const currentSeg = segSelect.value;
+        segSelect.innerHTML = '<option value="TODOS">Todas as Diretorias e Entidades (Visão Completa)</option>';
+        data.available_segments.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s; opt.textContent = s;
+          segSelect.appendChild(opt);
+        });
+        segSelect.value = currentSeg;
+      }
+
+      const areaSelect = document.getElementById('filter-area');
+      const currentArea = areaSelect.value;
+      areaSelect.innerHTML = '<option value="TODAS">Todas as Superintendências</option>';
+      data.available_areas.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a; opt.textContent = a;
+        areaSelect.appendChild(opt);
+      });
+      if (data.available_areas.includes(currentArea)) {
+        areaSelect.value = currentArea;
+      }
+
+      renderHierarchyCards(data.hierarchy);
+    }
+
+    function updateEntityMacroKpis(hierarchy) {
+      let cniTotal = 0, sesiTotal = 0, senaiTotal = 0, ielTotal = 0;
+      Object.entries(hierarchy).forEach(([seg, obj]) => {
+        if (seg === 'SESI') sesiTotal += obj.total;
+        else if (seg === 'SENAI') senaiTotal += obj.total;
+        else if (seg === 'IEL') ielTotal += obj.total;
+        else cniTotal += obj.total;
+      });
+      const grandTotal = (cniTotal + sesiTotal + senaiTotal + ielTotal) || 1;
+      document.getElementById('kpi-cni').textContent = cniTotal;
+      document.getElementById('kpi-senai').textContent = senaiTotal;
+      document.getElementById('kpi-sesi').textContent = sesiTotal;
+      document.getElementById('kpi-iel').textContent = ielTotal;
+
+      document.getElementById('pct-cni').textContent = `${Math.round((cniTotal / grandTotal) * 100)}%`;
+      document.getElementById('pct-senai').textContent = `${Math.round((senaiTotal / grandTotal) * 100)}%`;
+      document.getElementById('pct-sesi').textContent = `${Math.round((sesiTotal / grandTotal) * 100)}%`;
+      document.getElementById('pct-iel').textContent = `${Math.round((ielTotal / grandTotal) * 100)}%`;
+    }
+
+    function jumpToSlideEditor(slideNumber, shapeKey, unitName, managerName, hc) {
+      if (currentUserRole === 'VIEWER') return;
+      switchTab('updater');
+      document.getElementById('edit-slide-idx').value = slideNumber || '';
+      document.getElementById('edit-shape-id').value = shapeKey || '';
+      document.getElementById('edit-area-name').value = unitName || '';
+      document.getElementById('edit-manager-name').value = managerName || '';
+      document.getElementById('edit-headcount').value = hc !== undefined ? hc : '';
+      document.getElementById('edit-area-name').focus();
+    }
+
+    function renderHierarchyCards(hierarchy) {
+      const container = document.getElementById('hierarchy-container');
+      container.innerHTML = '';
+
+      Object.entries(hierarchy).forEach(([segName, segObj]) => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden';
+
+        let areasHtml = '';
+        Object.entries(segObj.areas).forEach(([areaName, areaObj]) => {
+          const headUnits = areaObj.unidades.filter(u => u.role && u.role !== 'GERENCIA_UNIDADE');
+          const childUnits = areaObj.unidades.filter(u => !u.role || u.role === 'GERENCIA_UNIDADE');
+
+          const headHtml = headUnits.map(u => `
+            <div onclick="jumpToSlideEditor(${u.slide_number || 1}, '${u.shape_key || ''}', '${(u.unidade_des || '').replace(/'/g, "\\'")}', '${(u.manager || '').replace(/'/g, "\\'")}', ${u.headcount})"
+                 title="Clique para editar esta caixa no PowerPoint (Slide ${u.slide_number || 1})"
+                 class="cursor-pointer bg-gradient-to-r from-cni-dark to-cni hover:from-cni hover:to-cni-light text-white rounded-xl p-3 shadow-xs flex justify-between items-center mb-2.5 transition group">
+              <div class="pr-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[9px] uppercase tracking-wider bg-white/15 text-sky-200 px-1.5 py-0.5 rounded font-bold">
+                    ${u.role === 'DIRETORIA_CABECA' ? 'Gabinete Diretoria' : 'Titular Superintendência'}
+                  </span>
+                  <span class="text-[10px] text-white/70 opacity-0 group-hover:opacity-100 transition">✏️ Editar</span>
+                </div>
+                <div class="text-xs font-bold leading-snug mt-1">${u.unidade_des}</div>
+                ${u.manager ? `<div class="text-[11px] text-sky-200 font-medium mt-0.5">${u.manager}</div>` : ''}
+              </div>
+              <div class="flex flex-col items-end">
+                <span class="bg-white text-cni-dark font-extrabold text-sm px-2.5 py-1 rounded-lg shadow-xs min-w-[34px] text-center">
+                  ${u.headcount}
+                </span>
+              </div>
+            </div>
+          `).join('');
+
+          const childrenHtml = childUnits.map(u => {
+            const barWidth = Math.max(6, Math.round((u.headcount / (areaObj.subtotal || 1)) * 100));
+            return `
+              <div class="relative pl-4 before:content-[''] before:absolute before:left-1.5 before:top-0 before:bottom-0 before:w-0.5 before:bg-cni/20">
+                <div onclick="jumpToSlideEditor(${u.slide_number || 1}, '${u.shape_key || ''}', '${(u.unidade_des || '').replace(/'/g, "\\'")}', '${(u.manager || '').replace(/'/g, "\\'")}', ${u.headcount})"
+                     title="Clique para editar no PowerPoint (Slide ${u.slide_number || 1})"
+                     class="cursor-pointer group relative before:content-[''] before:absolute before:-left-2.5 before:top-1/2 before:w-2.5 before:h-0.5 before:bg-cni/20 bg-white border border-slate-200/90 hover:border-cni rounded-xl p-2.5 shadow-2xs transition">
+                  <div class="flex justify-between items-start gap-2">
+                    <div class="pr-1">
+                      <div class="text-xs text-slate-800 font-semibold leading-snug group-hover:text-cni transition">
+                        ${u.unidade_des}
+                      </div>
+                      ${u.manager ? `<span class="inline-block text-[11px] text-slate-500 italic mt-0.5">${u.manager}</span>` : ''}
+                    </div>
+                    <span class="font-extrabold text-xs text-cni bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg min-w-[32px] text-center">
+                      ${u.headcount}
+                    </span>
+                  </div>
+                  <div class="w-full bg-slate-100 h-1 rounded-full mt-2 overflow-hidden">
+                    <div class="bg-cni-accent h-full rounded-full" style="width: ${barWidth}%"></div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          const badgeType = areaObj.is_direct_staff
+            ? '<span class="text-[9px] font-bold uppercase bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Staff Direto</span>'
+            : '<span class="text-[9px] font-bold uppercase bg-sky-100 text-cni px-2 py-0.5 rounded">Superintendência</span>';
+
+          areasHtml += `
+            <div class="border border-slate-200/90 rounded-2xl p-4 bg-[#F8FAFC] flex flex-col justify-between hover:shadow-xs transition">
+              <div>
+                <div class="flex justify-between items-start gap-2 border-b border-slate-200 pb-2.5 mb-3">
+                  <div>
+                    ${badgeType}
+                    <h4 class="font-extrabold text-xs text-cni uppercase mt-1 leading-snug">${areaName}</h4>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Subtotal</span>
+                    <span class="text-sm font-extrabold text-cni">${areaObj.subtotal}</span>
+                  </div>
+                </div>
+                ${headHtml}
+                <div class="space-y-2 mt-2">${childrenHtml}</div>
+              </div>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div class="${getEntityHeaderStyle(segName)} text-white px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex items-center gap-3">
+              <span class="bg-white/15 text-white font-mono text-xs font-bold px-2.5 py-1 rounded-lg border border-white/20">
+                Slide ${segObj.slide_number || 1}
+              </span>
+              <div>
+                <span class="text-[10px] uppercase tracking-widest text-white/75 font-semibold block">Diretoria / Entidade</span>
+                <h3 class="font-extrabold text-base md:text-lg tracking-tight">${segName}</h3>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 self-end sm:self-center">
+              <span class="text-xs text-white/85 font-medium">${Object.keys(segObj.areas).length} blocos organizacionais</span>
+              <span class="bg-white text-cni-dark text-sm font-extrabold px-4 py-1.5 rounded-full shadow-sm">
+                Total: ${segObj.total}
+              </span>
+            </div>
+          </div>
+          <div class="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">${areasHtml}</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function exportFilteredToCSV() {
+      const rows = [['SEGMENTO_DES', 'AREA_DES', 'UNIDADE_DES', 'GESTOR', 'HEADCOUNT']];
+      Object.entries(lastFilteredHierarchy).forEach(([segName, segObj]) => {
+        Object.entries(segObj.areas).forEach(([areaName, areaObj]) => {
+          areaObj.unidades.forEach(u => {
+            rows.push([
+              `"${segName}"`,
+              `"${areaName}"`,
+              `"${u.unidade_des}"`,
+              `"${u.manager || ''}"`,
+              u.headcount
+            ]);
+          });
+        });
+      });
+
+      const csvContent = '\uFEFF' + rows.map(r => r.join(';')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Headcount_Sistema_Industria_${document.getElementById('ref-date-input').value}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function parseBoxString(str) {
+      let raw = str || '';
+      let numMatch = raw.match(/\[(\d+)\]\s*$/);
+      let hc = numMatch ? parseInt(numMatch[1], 10) : (raw.match(/^\d+$/) ? parseInt(raw, 10) : null);
+      let textPart = raw.replace(/\[\d+\]\s*$/, '').trim();
+      let areaName = textPart;
+      let mgrName = '';
+      if (textPart.includes('(')) {
+        const pIdx = textPart.indexOf('(');
+        areaName = textPart.substring(0, pIdx).trim();
+        mgrName = textPart.substring(pIdx).trim();
+      }
+      return { areaName, mgrName, hc };
+    }
+
+    function loadRowIntoEditor(index) {
+      const item = currentAuditChanges[index];
+      if (!item) return;
+
+      document.getElementById('edit-slide-idx').value = item.slide_index;
+      document.getElementById('edit-shape-id').value = item.shape_id;
+
+      const parsed = parseBoxString(item.new_value);
+      document.getElementById('edit-area-name').value = parsed.areaName;
+      document.getElementById('edit-manager-name').value = parsed.mgrName;
+      document.getElementById('edit-headcount').value = parsed.hc !== null ? parsed.hc : '';
+    }
+
+    function addManualOverride() {
+      const slideIdx = document.getElementById('edit-slide-idx').value;
+      const shapeId = document.getElementById('edit-shape-id').value.trim();
+      const areaName = document.getElementById('edit-area-name').value.trim();
+      const mgrName = document.getElementById('edit-manager-name').value.trim();
+      const hc = document.getElementById('edit-headcount').value.trim();
+
+      if (!slideIdx || !shapeId) {
+        alert('Informe o Slide e o Shape ID (ou clique em "Editar" num cartão ao lado).');
+        return;
+      }
+
+      manualOverrides = manualOverrides.filter(o => !(o.slide_index == slideIdx && o.shape_id === shapeId));
+      manualOverrides.push({
+        slide_index: parseInt(slideIdx, 10),
+        shape_id: shapeId,
+        new_area_name: areaName || null,
+        new_manager: mgrName || null,
+        new_number: hc !== '' ? hc : null
+      });
+
+      renderOverridesList();
+    }
+
+    function clearManualOverrides() {
+      manualOverrides = [];
+      renderOverridesList();
+    }
+
+    function removeOverride(idx) {
+      manualOverrides.splice(idx, 1);
+      renderOverridesList();
+    }
+
+    function renderOverridesList() {
+      const container = document.getElementById('overrides-list');
+      document.getElementById('override-count-badge').textContent = `${manualOverrides.length} ajustes`;
+
+      if (manualOverrides.length === 0) {
+        container.innerHTML = 'Nenhuma edição manual adicionada.';
+        return;
+      }
+
+      container.innerHTML = manualOverrides.map((o, idx) => `
+        <div class="bg-sky-50 border border-sky-200 rounded-lg p-2.5 flex justify-between items-center not-italic text-slate-700">
+          <div>
+            <span class="font-bold text-cni">Slide ${o.slide_index}</span> · <code class="text-[10px] bg-white px-1 rounded">${o.shape_id}</code>
+            <div class="text-xs font-bold text-slate-900 mt-0.5">
+              ${o.new_area_name || ''} <span class="text-cni-accent">${o.new_manager || ''}</span> ${o.new_number !== null ? `<span class="bg-cni text-white px-1.5 py-0.2 rounded text-[10px]">[${o.new_number}]</span>` : ''}
+            </div>
+          </div>
+          <button onclick="removeOverride(${idx})" class="text-rose-500 hover:text-rose-700 font-bold px-2">✕</button>
+        </div>
+      `).join('');
+    }
+
+    async function handlePptxUpdate(event) {
+      if (event) event.preventDefault();
+      const fileInput = document.getElementById('pptx-file');
+      const refLabel = document.getElementById('pptx-ref-label').value;
+      const refDate = document.getElementById('ref-date-input').value;
+      const autoLayout = document.getElementById('chk-auto-layout').checked;
+      const btn = document.getElementById('btn-submit-pptx');
+
+      if (!fileInput.files.length) {
+        alert('Selecione o arquivo .pptx base primeiro.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      if (currentUploadedDataFile) {
+        formData.append('data_file', currentUploadedDataFile);
+      }
+      formData.append('reference_date', refDate);
+      formData.append('reference_label', refLabel);
+      formData.append('custom_overrides_json', JSON.stringify(manualOverrides));
+      formData.append('auto_layout', autoLayout);
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> Processando XML, Recalculando Totais e Alinhando Slides...';
+
+      try {
+        const res = await fetch('/api/update-pptx', { method: 'POST', body: formData });
+        if (res.status === 401) {
+          document.getElementById('login-overlay').classList.remove('hidden');
+          return;
+        }
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || 'Erro ao processar PowerPoint.');
+
+        const rep = json.report;
+        currentAuditChanges = rep.changes;
+
+        document.getElementById('rep-slides').textContent = `${rep.slides_before} / ${rep.slides_after}`;
+        document.getElementById('rep-total-cni').textContent = rep.total_company_headcount;
+        document.getElementById('rep-updated').textContent = rep.updated_count;
+        document.getElementById('rep-conflicts').textContent = rep.conflict_count;
+
+        const notesBox = document.getElementById('layout-notes-box');
+        if (rep.validation_notes && rep.validation_notes.length > 0) {
+          notesBox.classList.remove('hidden');
+          notesBox.innerHTML = `<div class="font-bold text-emerald-950 mb-1">✨ Otimizações de Auto-Layout Aplicadas nos Slides:</div>` +
+            rep.validation_notes.map(n => `<div>• ${n}</div>`).join('');
+        } else {
+          notesBox.classList.add('hidden');
+        }
+
+        const dlBtn = document.getElementById('btn-download-result');
+        dlBtn.onclick = () => {
+          const byteCharacters = atob(json.pptx_base64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const blob = new Blob([new Uint8Array(byteNumbers)], {
+            type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = json.download_filename;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+
+        document.getElementById('audit-report-panel').classList.remove('hidden');
+        renderAuditTable();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>⚡</span> Processar e Gerar .PPTX Atualizado';
+      }
+    }
+
+    function renderAuditTable() {
+      const statusFilter = document.getElementById('audit-status-filter').value;
+      const slideFilter = document.getElementById('audit-slide-filter').value;
+      const container = document.getElementById('audit-cards-container');
+      container.innerHTML = '';
+
+      const badgeStyles = {
+        'NOVA_CAIXA_CRIADA_PADRAO_PPT': { label: '🟢 Nova Caixa Clonada', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+        'NOME_E_NUMERO_ATUALIZADOS': { label: '🟣 Área / Gestor Atualizado', cls: 'bg-purple-100 text-purple-800 border-purple-300' },
+        'NUMERO_ATUALIZADO': { label: '🔵 Headcount Atualizado', cls: 'bg-sky-100 text-cni border-sky-300' },
+        'UNIDADE_SEM_CONTRATOS_NO_BANCO': { label: '🟠 Sem Contratos (0)', cls: 'bg-amber-100 text-amber-900 border-amber-300' },
+        'INALTERADO': { label: '⚪ Mantido Igual', cls: 'bg-slate-100 text-slate-500 border-slate-200' }
+      };
+
+      currentAuditChanges.forEach((c, idx) => {
+        if (statusFilter === 'APENAS_ALTERADOS' && c.status === 'INALTERADO') return;
+        if (statusFilter !== 'TODOS' && statusFilter !== 'APENAS_ALTERADOS' && c.status !== statusFilter) return;
+        if (slideFilter !== 'TODOS' && String(c.slide_index) !== slideFilter) return;
+
+        const oldP = parseBoxString(c.old_value);
+        const newP = parseBoxString(c.new_value);
+        const stInfo = badgeStyles[c.status] || { label: c.status, cls: 'bg-slate-100 text-slate-700' };
+
+        let deltaBadge = '';
+        if (oldP.hc !== null && newP.hc !== null) {
+          const diff = newP.hc - oldP.hc;
+          const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
+          const diffColor = diff > 0 ? 'bg-emerald-600 text-white' : (diff < 0 ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-700');
+          deltaBadge = `
+            <div class="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+              <span class="text-xs text-slate-500 line-through">${oldP.hc}</span>
+              <span class="text-slate-400">➔</span>
+              <span class="text-sm font-extrabold text-cni">${newP.hc}</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${diffColor}">${diffStr}</span>
+            </div>
+          `;
+        } else if (newP.hc !== null) {
+          deltaBadge = `<span class="text-sm font-extrabold bg-emerald-600 text-white px-2.5 py-1 rounded-lg">Novo HC: ${newP.hc}</span>`;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'p-3.5 rounded-xl border border-slate-200 hover:border-cni/40 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition';
+        card.innerHTML = `
+          <div class="space-y-1 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="bg-cni text-white text-[11px] font-extrabold px-2.5 py-0.5 rounded">Slide ${c.slide_index}</span>
+              <code class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Shape: ${c.shape_id}</code>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${stInfo.cls}">${stInfo.label}</span>
+              ${c.message ? `<span class="text-[11px] text-slate-500 font-medium">· ${c.message}</span>` : ''}
+            </div>
+
+            <div class="pt-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+              <div class="text-xs text-slate-400 line-through">${oldP.areaName} ${oldP.mgrName}</div>
+              <span class="hidden sm:inline text-slate-300">➔</span>
+              <div class="text-sm font-bold text-slate-900">
+                ${newP.areaName}
+                ${newP.mgrName ? `<span class="inline-block bg-sky-50 text-cni-light border border-sky-200 text-xs font-semibold px-2 py-0.5 rounded-full ml-1">${newP.mgrName}</span>` : ''}
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 self-end sm:self-center">
+            ${deltaBadge}
+            <button type="button" onclick="loadRowIntoEditor(${idx})"
+                    class="bg-slate-100 hover:bg-cni hover:text-white text-cni font-bold px-3 py-1.5 rounded-lg text-xs border border-slate-200 transition whitespace-nowrap">
+              ✏️ Editar
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function applyUserRoleUI(user, role) {
+      currentUserRole = role || 'ADMIN';
+      const box = document.getElementById('user-badge-box');
+      const label = document.getElementById('logged-user-label');
+      if (box && label && user) {
+        box.classList.remove('hidden');
+        label.textContent = `👤 ${user} (${currentUserRole})`;
+      }
+      const isViewer = currentUserRole === 'VIEWER';
+      document.getElementById('tab-btn-updater')?.classList.toggle('hidden', isViewer);
+      document.getElementById('btn-open-data-modal')?.classList.toggle('hidden', isViewer);
+    }
+
+    async function checkAuthAndInit() {
+      try {
+        const res = await fetch('/api/session');
+        const data = await res.json();
+        if (!data.authenticated) {
+          document.getElementById('login-overlay').classList.remove('hidden');
+        } else {
+          document.getElementById('login-overlay').classList.add('hidden');
+          applyUserRoleUI(data.user, data.role);
+          loadHeadcount(false);
+        }
+      } catch (err) {
+        document.getElementById('login-overlay').classList.remove('hidden');
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('login-error');
+      const submitBtn = document.getElementById('btn-login-submit');
+      errBox.classList.add('hidden');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Verificando credenciais...';
+
+      const formData = new FormData();
+      formData.append('username', document.getElementById('login-user').value);
+      formData.append('password', document.getElementById('login-pass').value);
+
+      try {
+        const res = await fetch('/api/login', { method: 'POST', body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('login-overlay').classList.add('hidden');
+          document.getElementById('login-pass').value = '';
+          applyUserRoleUI(data.user, data.role);
+          loadHeadcount(false);
+        } else {
+          errBox.textContent = 'Utilizador ou palavra-passe inválidos.';
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBox.textContent = 'Erro de comunicação com o servidor.';
+        errBox.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Autenticar e Entrar no Portal';
+      }
+    }
+
+    async function handleLogout() {
+      await fetch('/api/logout', { method: 'POST' });
+      switchTab('explorer');
+      document.getElementById('user-badge-box').classList.add('hidden');
+      document.getElementById('login-overlay').classList.remove('hidden');
+    }
+
+    window.addEventListener('DOMContentLoaded', checkAuthAndInit);
+  </script>
+</body>
+</html>

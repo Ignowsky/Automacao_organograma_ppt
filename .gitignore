@@ -1,0 +1,13 @@
+# Variáveis de ambiente e segredos (NUNCA subir para o Git)
+.env
+
+# Ambiente virtual e cache do Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Arquivos temporários do PowerPoint ou Excel (ex: ~$Estrutura...)
+~$*.pptx
+~$*.xlsx
