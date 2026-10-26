@@ -1610,7 +1610,7 @@
         return JSON.parse(rawText);
       } catch (e) {
         const preview = rawText.replace(/<[^>]*>?/gm, '').trim().slice(0, 180);
-        throw new Error(`Erro do Servidor (${res.status}):${preview || 'Resposta inválida.'}`);
+        throw new Error(`Erro do Servidor (${res.status}): ${preview || 'Resposta inválida.'}`);
       }
     }
 
@@ -1642,7 +1642,7 @@
         document.getElementById('header-ref-label').textContent = json.default_label;
         document.getElementById('pptx-ref-label').value = json.default_label;
         document.getElementById('active-data-source-pill').textContent =
-          `Fonte Ativa: ${json.source} ·${json.default_label}`;
+          `Fonte Ativa: ${json.source} · ${json.default_label}`;
       } else {
         document.getElementById('header-ref-label').textContent = 'Aguardando Base';
         document.getElementById('active-data-source-pill').textContent = `Fonte: ${json.source}`;
@@ -1998,9 +1998,9 @@
                     area: u.unidade_des,
                     mgr: u.manager || '',
                     hc: u.headcount,
-                    meta: `${segName} ›${areaName}`
+                    meta: `${segName} › ${areaName}`
                   }),
-                  label: `🏢 ${u.unidade_des}${u.manager || ''} [${u.headcount}]`
+                  label: `🏢 ${u.unidade_des} ${u.manager || ''} [${u.headcount}]`
                 });
               }
             });
@@ -2210,7 +2210,7 @@
         let areasHtml = '';
         Object.entries(segObj.areas).forEach(([areaName, areaObj]) => {
           const safeArea = (areaName || '').replace(/'/g, "\\'");
-          const metaHierarchy = `${safeSeg} ›${safeArea}`;
+          const metaHierarchy = `${safeSeg} › ${safeArea}`;
           const headUnits = areaObj.unidades.filter(u => u.role && u.role !== 'GERENCIA_UNIDADE');
           const childUnits = areaObj.unidades.filter(u => !u.role || u.role === 'GERENCIA_UNIDADE');
 
@@ -2224,7 +2224,8 @@
                   </span>
                   <span class="text-[10px] text-white/90 bg-white/15 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition">✏️ Editar no Slide ${u.slide_number || segObj.slide_number || 1}</span>
                 </div>
-                <div class="text-xs font-bold leading-snug mt-1">${u.unidade_des}</div>${u.manager ? `<div class="text-[11px] text-cni-lighter font-medium mt-0.5">${u.manager}</div>` : ''}
+                <div class="text-xs font-bold leading-snug mt-1">${u.unidade_des}</div>
+                ${u.manager ? `<div class="text-[11px] text-cni-lighter font-medium mt-0.5">${u.manager}</div>` : ''}
               </div>
               <div class="flex flex-col items-end">
                 <span class="bg-white text-cni-dark font-extrabold text-sm px-2.5 py-1 rounded-lg shadow-xs min-w-[34px] text-center">
@@ -2446,7 +2447,7 @@
       };
 
       const actDesc = currentEditorMode === 'ADD' ? `Adicionada nova caixa "${areaName || shapeId}" no Slide ${slideIdx}`
-                    : currentEditorMode === 'REMOVE' ? `Removida caixa (${shapeId}) do Slide${slideIdx}`
+                    : currentEditorMode === 'REMOVE' ? `Removida caixa (${shapeId}) do Slide ${slideIdx}`
                     : `Editada caixa "${areaName || shapeId}" no Slide ${slideIdx} [HC: ${hc}]`;
       pushSessionLog(currentEditorMode, actDesc);
 
@@ -2517,7 +2518,8 @@
               </div>
               <div class="text-xs font-bold text-slate-900 mt-0.5 leading-snug">
                 ${escapeHtml(o.new_area_name || (act === 'REMOVE' ? 'Remover caixa selecionada' : ''))}
-                <span class="text-cni-pure font-semibold">${escapeHtml(o.new_manager || '')}</span>${o.new_number !== null ? `<span class="text-[10px] font-extrabold text-cni-dark ml-1">[HC: ${o.new_number}]</span>` : ''}
+                <span class="text-cni-pure font-semibold">${escapeHtml(o.new_manager || '')}</span>
+                ${o.new_number !== null ? `<span class="text-[10px] font-extrabold text-cni-dark ml-1">[HC: ${o.new_number}]</span>` : ''}
               </div>
             </div>
             <button type="button" onclick="removeOverride(${idx})" class="text-rose-500 hover:text-rose-700 font-bold px-2">✕</button>
@@ -2589,7 +2591,7 @@
           document.getElementById('header-ref-label').textContent = rep.reference_label;
         }
 
-        document.getElementById('rep-slides').textContent = `${rep.slides_before} /${rep.slides_after}`;
+        document.getElementById('rep-slides').textContent = `${rep.slides_before} / ${rep.slides_after}`;
         document.getElementById('rep-total-cni').textContent = rep.total_company_headcount;
         document.getElementById('rep-updated').textContent = rep.updated_count;
         document.getElementById('rep-conflicts').textContent = rep.conflict_count;
@@ -2766,3 +2768,79 @@
         countBadge.textContent = `${visibleCount} ${visibleCount === 1 ? 'item' : 'itens'}`;
       }
     }
+
+    function applyUserRoleUI(user, role) {
+      currentUserRole = role || 'ADMIN';
+      const box = document.getElementById('user-badge-box');
+      const label = document.getElementById('logged-user-label');
+      if (box && label && user) {
+        box.classList.remove('hidden');
+        label.textContent = `👤 ${user} (${currentUserRole})`;
+      }
+      const isViewer = currentUserRole === 'VIEWER';
+      document.getElementById('tab-btn-updater')?.classList.toggle('hidden', isViewer);
+      document.getElementById('btn-open-data-modal')?.classList.toggle('hidden', isViewer);
+    }
+
+    async function checkAuthAndInit() {
+      renderBreadcrumb();
+      renderSessionLog();
+      try {
+        const res = await fetch('/api/session');
+        const data = await safeParseJson(res);
+        if (!data.authenticated) {
+          document.getElementById('login-overlay').classList.remove('hidden');
+        } else {
+          document.getElementById('login-overlay').classList.add('hidden');
+          applyUserRoleUI(data.user, data.role);
+          loadHeadcount(false);
+        }
+      } catch (err) {
+        document.getElementById('login-overlay').classList.remove('hidden');
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('login-error');
+      const submitBtn = document.getElementById('btn-login-submit');
+      errBox.classList.add('hidden');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Verificando credenciais...';
+
+      const formData = new FormData();
+      formData.append('username', document.getElementById('login-user').value);
+      formData.append('password', document.getElementById('login-pass').value);
+
+      try {
+        const res = await fetch('/api/login', { method: 'POST', body: formData });
+        if (res.ok) {
+          const data = await safeParseJson(res);
+          document.getElementById('login-overlay').classList.add('hidden');
+          document.getElementById('login-pass').value = '';
+          applyUserRoleUI(data.user, data.role);
+          loadHeadcount(false);
+        } else {
+          errBox.textContent = 'Utilizador ou palavra-passe inválidos.';
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBox.textContent = 'Erro de comunicação com o servidor.';
+        errBox.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Autenticar e Entrar no Portal';
+      }
+    }
+
+    async function handleLogout() {
+      await fetch('/api/logout', { method: 'POST' });
+      switchTab('explorer');
+      document.getElementById('user-badge-box').classList.add('hidden');
+      document.getElementById('login-overlay').classList.remove('hidden');
+    }
+
+    window.addEventListener('DOMContentLoaded', checkAuthAndInit);
+  </script>
+</body>
+</html>
