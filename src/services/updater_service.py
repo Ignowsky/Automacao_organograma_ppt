@@ -20,7 +20,7 @@ class PresentationUpdaterService:
     Orquestrador central das Fases 2 a 9 com suporte a:
     - Edição Manual (UPDATE), Adição de Novas Caixas (ADD) e Remoção de Caixas (REMOVE);
     - Recálculo Matemático em Cascata (Unidade -> Subtotal Superintendência -> Total Diretoria -> Total CNI);
-    - Extração de Pré-Visualização 16:9 Interativa dos Slides (slides_preview).
+    - Injeção das regras do slide_mapping.json na extração da Pré-Visualização 16:9 (slides_preview).
     """
 
     def __init__(self, mapping_json_path: str = "config/slide_mapping.json") -> None:
@@ -184,7 +184,6 @@ class PresentationUpdaterService:
                     except ValueError:
                         new_num_int = None
 
-                # --- AÇÃO 1: ADICIONAR NOVA CAIXA NA COLUNA (ADD) ---
                 if action == "ADD":
                     add_hc = new_num_int if new_num_int is not None else 0
                     u_ref = unit_lookup.get((s_idx, shape_key))
@@ -208,7 +207,6 @@ class PresentationUpdaterService:
                     )
                     continue
 
-                # --- AÇÃO 2: REMOVER CAIXA EXISTENTE DO SLIDE (REMOVE) ---
                 if action == "REMOVE":
                     if (s_idx, shape_key) in unit_lookup:
                         u_rule = unit_lookup[(s_idx, shape_key)]
@@ -220,7 +218,7 @@ class PresentationUpdaterService:
                         _apply_cascade_delta(u_rule["segmento"], u_rule["area"], -prev_hc)
                     elif (s_idx, shape_key) in extinct_lookup:
                         ex_rule = extinct_lookup[(s_idx, shape_key)]
-                        canonical_ex = f"{ex_rule['name_path']} | {ex['badge_path']}"
+                        canonical_ex = f"{ex_rule['name_path']} | {ex_rule['badge_path']}"
                         removed_unit_keys[(s_idx, canonical_ex)] = ov
                     else:
                         custom_removed_unmapped.append(ov)
@@ -238,7 +236,6 @@ class PresentationUpdaterService:
                         _apply_cascade_delta(inf_seg, inf_area, -prev_hc)
                     continue
 
-                # --- AÇÃO 3: EDITAR CAIXA EXISTENTE (UPDATE) ---
                 if (s_idx, shape_key) in unit_lookup:
                     u_rule = unit_lookup[(s_idx, shape_key)]
                     canonical_key = f"{u_rule['name_path']} | {u_rule['badge_path']}"
@@ -388,7 +385,7 @@ class PresentationUpdaterService:
                     sign = "+" if cascaded_company_delta > 0 else ""
                     msg = (
                         f"🔄 Recalculado em cascata: Base ({base_total_company}) "
-                        f"{sign}{cascaded_company_delta} (Ajustes Manuais) = {total_company}"
+                        f"{sign}{cascaded_company_delta} (Ajustes Estruturais) = {total_company}"
                     )
                     cascade_entries.append(
                         ChangeLogEntry(
@@ -549,13 +546,12 @@ class PresentationUpdaterService:
                         )
                     )
 
-        # 5. Caixas de Unidades Existentes (Gerências / Gabinetes / Titulares)
+        # 5. Caixas de Unidades Existentes
         for u in self.config.get("unit_boxes", []):
             s_idx = int(u["slide_index"])
             sl = prs.slides[s_idx]
             canonical_key = f"{u['name_path']} | {u['badge_path']}"
 
-            # Se o utilizador pediu para REMOVER esta caixa pela interface web:
             if (s_idx, canonical_key) in removed_unit_keys:
                 rem_info = PptxSurgicalEngine.remove_unit_group_in_column(
                     sl, canonical_key, compact_column=auto_layout
@@ -633,7 +629,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 6. Novas Caixas Clonadas do Mapeamento Padrão
+        # 6. Novas Caixas Clonadas
         for cl in self.config.get("cloned_new_boxes", []):
             s_idx = int(cl["slide_index"])
             sl = prs.slides[s_idx]
@@ -670,38 +666,36 @@ class PresentationUpdaterService:
             else:
                 regular_entries.append(entry)
 
-        # 6B. Novas Caixas Adicionadas Manualmente pelo Utilizador na Interface Web (action == 'ADD')
+        # 6B. Novas Caixas Adicionadas via Web (action == 'ADD')
         for add_req in custom_added_boxes:
             s_idx = int(add_req["slide_index"])
             sl = prs.slides[s_idx]
             tpl_key = str(add_req["template_shape_key"])
-            tpl_group_str = tpl_key.split("|")[0].strip().split(".")[0].strip()
 
-            if tpl_group_str.isdigit():
-                try:
-                    cloned_info = PptxSurgicalEngine.clone_unit_group_in_column(
-                        slide=sl,
-                        template_group_id=int(tpl_group_str),
-                        new_area_name=add_req["new_area_name"],
-                        new_headcount=add_req["new_headcount"],
-                        manager_placeholder=add_req["new_manager"],
+            try:
+                cloned_info = PptxSurgicalEngine.clone_unit_group_in_column(
+                    slide=sl,
+                    template_group_id=tpl_key,
+                    new_area_name=add_req["new_area_name"],
+                    new_headcount=add_req["new_headcount"],
+                    manager_placeholder=add_req["new_manager"],
+                )
+                manual_entries.append(
+                    ChangeLogEntry(
+                        s_idx + 1,
+                        f"{cloned_info['name_path']} | {cloned_info['badge_path']}",
+                        add_req["new_area_name"],
+                        TargetType.HEADCOUNT_UNIT,
+                        "(Nova Caixa Adicionada na Web)",
+                        f"{add_req['new_area_name']} {add_req['new_manager']} [{add_req['new_headcount']}]",
+                        UpdateStatus.CLONED_NEW_BOX,
+                        f"➕ Nova caixa criada pelo utilizador (+Recálculo em Cascata) · {add_req['segmento']} › {add_req['area']}",
                     )
-                    manual_entries.append(
-                        ChangeLogEntry(
-                            s_idx + 1,
-                            f"{cloned_info['name_path']} | {cloned_info['badge_path']}",
-                            add_req["new_area_name"],
-                            TargetType.HEADCOUNT_UNIT,
-                            "(Nova Caixa Adicionada na Web)",
-                            f"{add_req['new_area_name']} {add_req['new_manager']} [{add_req['new_headcount']}]",
-                            UpdateStatus.CLONED_NEW_BOX,
-                            f"➕ Nova caixa criada pelo utilizador (+Recálculo em Cascata) · {add_req['segmento']} › {add_req['area']}",
-                        )
-                    )
-                except Exception:
-                    pass
+                )
+            except Exception:
+                pass
 
-        # 7. Caixas Extintas / Sem Contratos Ativos
+        # 7. Caixas Extintas
         for ex in self.config.get("extinct_boxes", []):
             s_idx = int(ex["slide_index"])
             sl = prs.slides[s_idx]
@@ -777,7 +771,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 8. Remoções ou Edições de Shapes Avulsas
+        # 8. Remoções e Edições de Shapes Avulsas
         for rem_ov in custom_removed_unmapped:
             s_idx = int(rem_ov["slide_index"]) - 1
             sl = prs.slides[s_idx]
@@ -885,7 +879,7 @@ class PresentationUpdaterService:
         report.conflict_count = sum(
             1 for c in report.changes if c.status == UpdateStatus.EXTINCT_IN_DATABRICKS
         )
-        # Extrai a Pré-Visualização 16:9 de todos os slides a partir do PPTX validado final
-        report.slides_preview = PptxSurgicalEngine.extract_slides_preview(prs_val)
+        # INJEÇÃO DA CONFIGURAÇÃO DO MAPPINGS.JSON NO EXTRATOR DO PREVIEW 16:9
+        report.slides_preview = PptxSurgicalEngine.extract_slides_preview(prs_val, self.config)
 
         return pptx_bytes, report

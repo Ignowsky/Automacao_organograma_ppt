@@ -282,7 +282,7 @@
     }
     .ppt-el-text {
       position: absolute;
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 700;
       color: var(--portal-dark);
       display: flex;
@@ -292,6 +292,20 @@
       text-overflow: ellipsis;
       pointer-events: none;
       z-index: 5;
+    }
+    .ppt-el-inst {
+      position: absolute;
+      background: #F8FAFC;
+      border: 1px dashed var(--portal-medium);
+      border-radius: 0.25rem;
+      padding: 1px 4px;
+      font-size: 8px;
+      font-weight: 600;
+      color: var(--portal-dark);
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      z-index: 8;
     }
   </style>
 </head>
@@ -356,7 +370,7 @@
       <form onsubmit="handleCustomDataUpload(event)" class="p-6 space-y-4">
         <div class="bg-cni-lightest/60 border border-cni-lighter rounded-lg p-3.5 text-xs text-slate-700 space-y-1.5">
           <div class="font-bold text-cni-dark">Leitura Dinâmica de Data:</div>
-          <p>Anexe a planilha extraída do Databricks (<b>.xlsx</b> ou <b>.csv</b>). O portal detecta automaticamente a data preenchida nas células (seja <code>05/2026</code>, <code>2026-05-01</code> ou <code>2026-05-01T00:00:00.000+00:00</code>).</p>
+          <p>Anexe a planilha extraída do Databricks (<b>.xlsx</b> ou <b>.csv</b>). O portal detecta automaticamente a data preenchida nas células.</p>
           <p class="text-[11px] text-slate-500 font-mono">Colunas: ANO_MES_REFERENCIA (ou Ano_Mes), SEGMENTO_DES, AREA_DES, UNIDADE_DES, COUNT(CODIGO_CONTRATO)</p>
         </div>
 
@@ -410,16 +424,16 @@
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           <span id="datasource-badge" class="text-xs font-medium text-slate-200">Conectando...</span>
         </div>
-        <div class="flex items-center bg-cni-darkest/60 rounded border border-white/15 px-2.5 py-1" title="Competência lida dinamicamente do arquivo">
+        <div class="flex items-center bg-cni-darkest/60 rounded border border-white/15 px-2.5 py-1">
           <span class="text-[10px] uppercase text-slate-300 mr-2 font-semibold">Ref:</span>
           <input id="ref-date-input" type="text" value="" placeholder="--/----" onchange="onManualRefDateChange()"
                  class="bg-transparent text-xs font-mono text-white w-24 focus:outline-none text-center" />
         </div>
-        <button type="button" onclick="loadHeadcount(true)" title="Recarregar dados da fonte ativa"
+        <button type="button" onclick="loadHeadcount(true)" title="Recarregar dados"
                 class="btn secondary btn-small">
           Sincronizar
         </button>
-        <button id="btn-open-data-modal" type="button" onclick="toggleDataUploadModal(true)" title="Subir planilha .xlsx ou .csv extraída do Databricks"
+        <button id="btn-open-data-modal" type="button" onclick="toggleDataUploadModal(true)"
                 class="btn portal-btn primary btn-small">
           <span>📤</span> Subir Base (.xlsx/.csv)
         </button>
@@ -445,7 +459,7 @@
         </button>
         <button id="tab-btn-updater" type="button" onclick="switchTab('updater')"
                 class="py-3.5 border-b-2 border-transparent text-slate-500 hover:text-cni-pure font-semibold text-sm flex items-center gap-2 transition">
-          <span>⚡</span> Estúdio de Automação & Pré-Visualização PowerPoint (.PPTX)
+          <span>⚡</span> Estúdio de Automação & Pré-Visualização 16:9 (.PPTX)
         </button>
       </div>
       <div class="flex items-center gap-3">
@@ -593,7 +607,7 @@
           <div>
             <h2 class="text-base font-bold">Estúdio de Atualização Cirúrgica, Pré-Visualização 16:9 & Edição Estrutural (.PPTX)</h2>
             <p class="text-xs text-white/80 mt-0.5">
-              Adicione, edite ou remova caixas com alinhamento automático de coluna e recálculo em cascata de Superintendências e Diretorias.
+              Adicione, edite ou remova caixas com alinhamento automático de coluna e recálculo em cascata.
             </p>
           </div>
           <label class="flex items-center gap-2 bg-white/10 px-3.5 py-1.5 rounded-lg cursor-pointer text-xs font-semibold">
@@ -631,7 +645,7 @@
             </div>
           </div>
 
-          <!-- Barra de Progresso CNI (Só aparece após anexar e enviar o PPTX) -->
+          <!-- Barra de Progresso CNI -->
           <div id="pptx-progress-wrapper" class="hidden pt-4 border-t border-slate-100 space-y-2">
             <div class="flex justify-between items-center text-xs font-bold text-cni-dark">
               <span id="pptx-progress-status">Iniciando processamento do PowerPoint...</span>
@@ -678,9 +692,7 @@
           <div id="layout-notes-box" class="hidden bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-900 space-y-1"></div>
         </div>
 
-        <!-- =============================================================== -->
-        <!-- NOVO: PRÉ-VISUALIZAÇÃO INTERATIVA 16:9 DOS SLIDES DO POWERPOINT -->
-        <!-- =============================================================== -->
+        <!-- PRÉ-VISUALIZAÇÃO INTERATIVA 16:9 DOS SLIDES DO POWERPOINT -->
         <div class="bg-white rounded-xl shadow-sm border border-cni-lighter overflow-hidden">
           <div class="bg-cni-dark text-white px-5 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div class="flex items-center gap-3">
@@ -716,7 +728,7 @@
           </div>
         </div>
 
-        <!-- SPLIT VIEW: INVENTÁRIO VISUAL ESQUERDA (7/12) | ESTÚDIO DE EDIÇÃO DIREITA (5/12) -->
+        <!-- SPLIT VIEW: INVENTÁRIO (7/12) | ESTÚDIO DE EDIÇÃO DIREITA (5/12) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
           <!-- COLUNA ESQUERDA: Inventário Auditável -->
@@ -772,7 +784,7 @@
             <div id="audit-cards-container" class="divide-y divide-slate-100 max-h-[680px] overflow-y-auto p-4 space-y-2.5"></div>
           </div>
 
-          <!-- COLUNA DIREITA: Estúdio Interativo de Edição Estrutural (UPDATE / ADD / REMOVE) -->
+          <!-- COLUNA DIREITA: Estúdio Estrutural (UPDATE / ADD / REMOVE) -->
           <div id="live-editor-card" class="lg:col-span-5 bg-white rounded-xl shadow-md border-2 border-cni-lighter overflow-hidden sticky top-16 transition">
             <div class="bg-cni-dark text-white px-5 py-3.5 flex justify-between items-center">
               <div>
@@ -786,7 +798,7 @@
 
             <div class="p-5 space-y-4">
 
-              <!-- SELETOR DE MODO DE OPERAÇÃO: UPDATE vs ADD vs REMOVE -->
+              <!-- SELETOR DE MODO DE OPERAÇÃO -->
               <div class="grid grid-cols-3 gap-1.5 bg-cni-lightest p-1 rounded-xl border border-cni-lighter">
                 <button id="mode-btn-UPDATE" type="button" onclick="setEditorActionMode('UPDATE')"
                         class="py-2 px-2 rounded-lg text-xs font-extrabold bg-cni-pure text-white shadow-xs transition">
@@ -802,7 +814,7 @@
                 </button>
               </div>
 
-              <!-- PASSO 1: Seletor Guiado de Caixa / Coluna -->
+              <!-- PASSO 1: Seletor Guiado -->
               <div class="bg-cni-lightest/50 border border-cni-lighter rounded-xl p-3.5 space-y-2.5">
                 <div class="flex justify-between items-center">
                   <span id="editor-step1-title" class="text-[11px] font-extrabold uppercase text-cni-dark">
@@ -832,7 +844,7 @@
                     </select>
                   </div>
                   <div class="sm:col-span-2">
-                    <label id="editor-quick-box-label" class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Caixa Alvo (ou Coluna de Referência)</label>
+                    <label id="editor-quick-box-label" class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Caixa Alvo</label>
                     <select id="editor-quick-box" onchange="onEditorQuickBoxSelect()"
                             class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-white">
                       <option value="">Clique numa caixa no Preview 16:9 ou selecione aqui...</option>
@@ -864,7 +876,7 @@
                 </div>
               </div>
 
-              <!-- PASSO 2: Campos de Dados (Ocultos automaticamente quando modo == REMOVE) -->
+              <!-- PASSO 2: Campos de Dados -->
               <div id="editor-fields-wrapper" class="space-y-3">
                 <div>
                   <label id="lbl-edit-area-name" class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Nome da Área / Unidade no Slide</label>
@@ -898,7 +910,7 @@
                 </div>
               </div>
 
-              <!-- PASSO 3: Preview Visual da Caixa + Simulador de Cascata -->
+              <!-- PASSO 3: Preview Visual + Cascata -->
               <div id="live-box-preview-container" class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
                 <div class="flex justify-between items-center">
                   <span id="preview-header-label" class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
@@ -921,7 +933,6 @@
                 </div>
               </div>
 
-              <!-- Botões de Ação da Fila -->
               <div class="grid grid-cols-2 gap-2.5">
                 <button type="button" onclick="resetEditorForm()" class="btn secondary btn-small py-2">
                   Limpar Seleção
@@ -931,7 +942,6 @@
                 </button>
               </div>
 
-              <!-- Fila de Edições Manuais Ativas -->
               <div class="border-t border-slate-200 pt-3">
                 <div class="flex justify-between items-center mb-2">
                   <span class="text-[11px] font-bold uppercase text-slate-500">Fila de Alterações Estruturais</span>
@@ -944,7 +954,6 @@
                 </div>
               </div>
 
-              <!-- Botão Principal 1-Click -->
               <button type="button" onclick="applyAndRegeneratePptx()" class="w-full btn portal-btn primary icon-right py-3">
                 Aplicar Ajustes (Recalcular Cascata) e Re-gerar PPTX
               </button>
@@ -964,9 +973,6 @@
     </div>
   </footer>
 
-  <!-- ===================================================================== -->
-  <!-- JAVASCRIPT COMPLETO INTEGRADO                                         -->
-  <!-- ===================================================================== -->
   <script>
     let currentAuditChanges = [];
     let currentSlidesPreview = [];
@@ -977,7 +983,7 @@
     let currentUserRole = 'ADMIN';
     let currentUploadedDataFile = null;
     let currentActiveTab = 'explorer';
-    let currentEditorMode = 'UPDATE'; // 'UPDATE' | 'ADD' | 'REMOVE'
+    let currentEditorMode = 'UPDATE';
     let progressTimer = null;
     let currentEditingBaselineHc = null;
     let currentEditingMeta = { hierarchyLabel: '', targetType: '' };
@@ -1017,9 +1023,6 @@
       }
     }
 
-    // =====================================================================
-    // 1. BARRA DE PROGRESSO CNI
-    // =====================================================================
     function progress_bar(min, max, selector, animate) {
       const container = document.querySelector(selector);
       if (!container) return;
@@ -1060,9 +1063,6 @@
       progress_bar(0, 0, '#progressbar21', false);
     }
 
-    // =====================================================================
-    // 2. PRÉ-VISUALIZAÇÃO INTERATIVA 16:9 DOS SLIDES DO POWERPOINT
-    // =====================================================================
     function stepPreviewSlide(delta) {
       let next = currentPreviewSlideNumber + delta;
       if (next < 1) next = 11;
@@ -1107,17 +1107,26 @@
         return;
       }
 
+      // Renderiza as linhas conectoras do organograma (fundo)
+      if (slideObj.connectors) {
+        slideObj.connectors.forEach(c => {
+          const div = document.createElement('div');
+          div.style = `position:absolute; left:${c.left_pct}%; top:${c.top_pct}%; width:${c.width_pct}%; height:${c.height_pct}%; background:#94A3B8; opacity:0.35; z-index:1; pointer-events:none;`;
+          stage.appendChild(div);
+        });
+      }
+
       const activeShapeKey = (document.getElementById('edit-shape-id')?.value || '').trim();
 
-      slideObj.elements.forEach((el, elIdx) => {
+      slideObj.elements.forEach(el => {
         const stylePos = `left:${el.left_pct}%; top:${el.top_pct}%; width:${el.width_pct}%; height:${el.height_pct}%;`;
 
-        if (el.kind === 'UNIT_GROUP') {
+        if (el.kind === 'UNIT_BOX') {
           const isSelected = activeShapeKey && activeShapeKey === el.shape_key;
           const div = document.createElement('div');
           div.className = `ppt-el-unit ${isSelected ? 'active-selected' : ''}`;
           div.style = stylePos;
-          div.title = `Clique para editar, clonar na mesma coluna ou excluir: ${el.area_name} ${el.manager || ''} [${el.badge}]`;
+          div.title = `Clique para editar, clonar ou excluir: ${el.area_name} ${el.manager || ''} [${el.badge}]`;
           div.onclick = () => selectPreviewElement(slideNumber, el);
           div.innerHTML = `
             <div class="leading-tight overflow-hidden pr-1">
@@ -1129,11 +1138,19 @@
             </span>
           `;
           stage.appendChild(div);
-        } else if (el.kind === 'BADGE_OR_TOTAL') {
+        } else if (el.kind === 'BADGE_OR_TOTAL' || el.kind === 'AREA_SUBTOTAL' || el.kind === 'SLIDE_TOTAL_BADGE') {
           const div = document.createElement('div');
           div.className = 'ppt-el-badge';
           div.style = stylePos;
-          div.title = `Total / Subtotal [Shape ${el.shape_key}]: ${el.text}`;
+          div.title = `${el.area_name || 'Totalizador'} [Shape ${el.shape_key}]: ${el.badge}`;
+          div.onclick = () => selectPreviewElement(slideNumber, el);
+          div.textContent = el.badge;
+          stage.appendChild(div);
+        } else if (el.kind === 'INSTITUTIONAL_BOX') {
+          const div = document.createElement('div');
+          div.className = 'ppt-el-inst';
+          div.style = stylePos;
+          div.title = `Caixa Institucional: ${el.text}`;
           div.onclick = () => selectPreviewElement(slideNumber, el);
           div.textContent = el.text;
           stage.appendChild(div);
@@ -1148,7 +1165,7 @@
     }
 
     function selectPreviewElement(slideNumber, el) {
-      if (el.kind === 'UNIT_GROUP') {
+      if (el.kind === 'UNIT_BOX') {
         const numHc = el.badge && !isNaN(parseInt(el.badge, 10)) ? parseInt(el.badge, 10) : 0;
         setEditorFormValues(
           slideNumber,
@@ -1163,11 +1180,11 @@
           currentEditingBaselineHc = numHc;
         }
       } else {
-        const numHc = el.text && !isNaN(parseInt(el.text, 10)) ? parseInt(el.text, 10) : 0;
+        const numHc = el.badge && !isNaN(parseInt(el.badge, 10)) ? parseInt(el.badge, 10) : 0;
         setEditorFormValues(
           slideNumber,
           el.shape_key,
-          `Total / Subtotal (Shape ${el.shape_key})`,
+          el.area_name || 'Totalizador',
           '',
           numHc,
           `Slide ${slideNumber} · Totalizador`,
@@ -1179,9 +1196,6 @@
       renderSlidePreviewCanvas(slideNumber);
     }
 
-    // =====================================================================
-    // 3. NAVEGAÇÃO ESTRUTURAL & BREADCRUMB DINÂMICO
-    // =====================================================================
     function toggleBreadcrumbMenu(forceState) {
       const menu = document.getElementById('breadcrumb-dots-menu');
       if (!menu) return;
@@ -1688,9 +1702,6 @@
       document.getElementById('pct-iel').textContent = `${Math.round((ielTotal / grandTotal) * 100)}%`;
     }
 
-    // =====================================================================
-    // 4. ESTÚDIO DE EDIÇÃO ESTRUTURAL (MODOS UPDATE / ADD / REMOVE)
-    // =====================================================================
     function setEditorActionMode(mode) {
       currentEditorMode = mode;
       const modes = ['UPDATE', 'ADD', 'REMOVE'];
