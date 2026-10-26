@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 class UpdateStatus(str, Enum):
     UPDATED_NUMBER = "NUMERO_ATUALIZADO"
     UPDATED_NAME_AND_NUMBER = "NOME_E_NUMERO_ATUALIZADOS"
     CLONED_NEW_BOX = "NOVA_CAIXA_CRIADA_PADRAO_PPT"
+    REMOVED_BOX = "CAIXA_REMOVIDA_PELO_UTILIZADOR"
     EXTINCT_IN_DATABRICKS = "UNIDADE_SEM_CONTRATOS_NO_BANCO"
     UNCHANGED = "INALTERADO"
     ERROR = "ERRO_TECNICO"
@@ -23,12 +24,12 @@ class TargetType(str, Enum):
 
 @dataclass(frozen=True)
 class HeadcountRecord:
-    """Representa uma linha retornada pela query do Databricks."""
+    """Representa uma linha retornada pela query do Databricks ou planilha."""
     segmento_des: str
     area_des: str
     unidade_des: str
     headcount: int
-    ano_mes_referencia: str = "2026-10-01"
+    ano_mes_referencia: str = ""
 
 
 @dataclass(frozen=True)
@@ -72,3 +73,4 @@ class ExecutionReport:
     changes: List[ChangeLogEntry] = field(default_factory=list)
     technical_validation_passed: bool = False
     validation_notes: List[str] = field(default_factory=list)
+    slides_preview: List[Dict[str, Any]] = field(default_factory=list)
