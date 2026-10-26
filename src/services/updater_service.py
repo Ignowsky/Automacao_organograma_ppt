@@ -11,12 +11,13 @@ from src.domain.models import (
     TargetType,
 )
 from src.infrastructure.pptx_engine import PptxSurgicalEngine
+from src.infrastructure.databricks_repository import parse_reference_date_info
 
 
 class PresentationUpdaterService:
     """
     Orquestrador central das Fases 2 a 9 com suporte a Edições Manuais via Interface Web (Live Overrides)
-    e compatibilidade com o parâmetro auto_layout.
+    e reconhecimento dinâmico da data de referência a partir dos registros carregados.
     """
 
     def __init__(self, mapping_json_path: str = "config/slide_mapping.json") -> None:
@@ -32,13 +33,18 @@ class PresentationUpdaterService:
         self,
         pptx_stream: BinaryIO,
         records: List[HeadcountRecord],
-        reference_label: str = "Base Outubro 2026",
+        reference_label: str = "",
         original_filename: str = "apresentacao_original.pptx",
         custom_overrides: Optional[List[Dict[str, Any]]] = None,
         auto_layout: bool = True,
     ) -> tuple[bytes, ExecutionReport]:
         prs = Presentation(pptx_stream)
         slides_before = len(prs.slides)
+
+        # Se reference_label não foi informado, extrai dinamicamente dos registros da planilha
+        if not reference_label or not reference_label.strip():
+            sample_ref = records[0].ano_mes_referencia if records else None
+            reference_label = parse_reference_date_info(sample_ref)["label"]
 
         total_company = sum(r.headcount for r in records)
         seg_totals: Dict[str, int] = {}
@@ -61,7 +67,7 @@ class PresentationUpdaterService:
             reference_label=reference_label,
         )
 
-        # 1. Datas Base
+        # 1. Datas Base nos 11 Slides
         for d in self.config.get("date_shapes", []):
             sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[d["slide_index"]], d["shape_path"])
             if sh:
@@ -199,7 +205,7 @@ class PresentationUpdaterService:
 
         if auto_layout:
             report.validation_notes.append(
-                "Auto-Layout verificado: Caixas preservadas na grade original e contagens sincronizadas."
+                f"Auto-Layout verificado: Caixas sincronizadas com competência '{reference_label}'."
             )
 
         # 8. APLICAÇÃO DE EDIÇÕES MANUAIS DA INTERFACE WEB (LIVE OVERRIDES)

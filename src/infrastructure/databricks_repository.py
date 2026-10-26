@@ -4,7 +4,7 @@ import re
 import sys
 import logging
 from datetime import datetime, date
-from typing import List, Optional
+from typing import List, Optional, Any
 import pandas as pd
 from src.domain.models import HeadcountRecord
 from src.domain.interfaces import IHeadcountRepository
@@ -43,82 +43,108 @@ PT_MONTHS_REVERSE = {
 }
 
 
+def try_parse_any_date(raw_value: Any) -> Optional[tuple[int, int]]:
+    """
+    Tenta extrair (year, month) de qualquer formato de data/hora:
+    - '2026-05-01T00:00:00.000+00:00' (Databricks ISO 8601 com timezone)
+    - '2026-05-01 00:00:00' / '2026-05-01'
+    - '05/2026' / '5/2026'
+    - '01/05/2026' (dd/MM/yyyy)
+    - Objetos datetime, date ou pd.Timestamp do Excel
+    - Textos como 'Base Maio 2026' ou 'Maio/2026'
+    Retorna None se o valor não for uma data válida.
+    """
+    if raw_value is None or pd.isna(raw_value):
+        return None
+
+    if isinstance(raw_value, (datetime, date, pd.Timestamp)):
+        return int(raw_value.year), int(raw_value.month)
+
+    if isinstance(raw_value, (int, float)):
+        return None
+
+    s = str(raw_value).strip()
+    if not s:
+        return None
+
+    # 1. ISO 8601 completo ou parcial: '2026-05-01T00:00:00.000+00:00', '2026-05-01', '2026/05/01'
+    m_iso = re.match(r"^(\d{4})[/\-](\d{1,2})(?:[/\-](\d{1,2}))?(?:[T\s].*)?$", s)
+    if m_iso:
+        y, m = int(m_iso.group(1)), int(m_iso.group(2))
+        if 1990 <= y <= 2100 and 1 <= m <= 12:
+            return y, m
+
+    # 2. Formato MM/yyyy ou MM-yyyy: '05/2026', '5/2026'
+    m_my = re.match(r"^(\d{1,2})[/\-](\d{4})$", s)
+    if m_my:
+        m, y = int(m_my.group(1)), int(m_my.group(2))
+        if 1990 <= y <= 2100 and 1 <= m <= 12:
+            return y, m
+
+    # 3. Formato brasileiro dd/MM/yyyy (com ou sem hora): '01/05/2026'
+    m_dmy = re.match(r"^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})(?:[T\s].*)?$", s)
+    if m_dmy:
+        d, m, y = int(m_dmy.group(1)), int(m_dmy.group(2)), int(m_dmy.group(3))
+        if 1990 <= y <= 2100 and 1 <= m <= 12 and 1 <= d <= 31:
+            return y, m
+
+    # 4. Nome do mês em português: 'Base Maio 2026', 'Maio/2026', 'Maio_2026'
+    s_low = s.lower()
+    for m_name, m_num in sorted(PT_MONTHS_REVERSE.items(), key=lambda x: -len(x[0])):
+        if re.search(rf"(?:^|[\s_\-/]){re.escape(m_name)}(?:$|[\s_\-/])", s_low):
+            y_match = re.search(r"(20\d{2})", s_low)
+            if y_match:
+                return int(y_match.group(1)), m_num
+
+    # 5. Tentativa via parser ISO/UTC do pandas apenas para strings com cara de timestamp
+    if any(ch in s for ch in ("-", "/", "T")) and re.search(r"20\d{2}", s):
+        try:
+            dt = pd.to_datetime(s, utc=True, errors="raise")
+            if 1990 <= dt.year <= 2100:
+                return int(dt.year), int(dt.month)
+        except Exception:
+            pass
+
+    return None
+
+
 def parse_reference_date_info(
-    raw_value: Optional[ object ] = None,
+    raw_value: Optional[Any] = None,
     fallback_filename: str = "",
 ) -> dict[str, str]:
     """
-    Converte qualquer representação de data ('05/2026', '2026-05-01', Timestamp ou nome de arquivo
-    como 'Base_Maio_2026.xlsx') em um dicionário padronizado:
-    - iso_date: '2026-05-01' (para filtro SQL ANO_MES_REFERENCIA)
-    - ano_mes: '05/2026' (para exibição no campo REF e coluna Ano_Mes)
-    - label: 'Base Maio 2026' (para tag dos 11 slides do PPTX e cabeçalho)
+    Formata a data detectada em:
+    - iso_date: '2026-05-01'
+    - ano_mes: '05/2026'
+    - label: 'Base Maio 2026'
     """
-    year: Optional[int] = None
-    month: Optional[int] = None
+    parsed = try_parse_any_date(raw_value)
 
-    if raw_value is not None and not pd.isna(raw_value):
-        if isinstance(raw_value, (datetime, date, pd.Timestamp)):
-            year, month = raw_value.year, raw_value.month
-        else:
-            s = str(raw_value).strip()
-            # 1) Formato MM/yyyy (ex: 05/2026)
-            m_slash = re.match(r"^(\d{1,2})[/\-](\d{4})$", s)
-            if m_slash:
-                month, year = int(m_slash.group(1)), int(m_slash.group(2))
-            else:
-                # 2) Formato yyyy-MM-dd ou yyyy-MM (ex: 2026-05-01)
-                m_iso = re.match(r"^(\d{4})[/\-](\d{1,2})(?:[/\-]\d{1,2})?", s)
-                if m_iso:
-                    year, month = int(m_iso.group(1)), int(m_iso.group(2))
-                else:
-                    # 3) Texto como "Base Maio 2026" ou "Maio/2026"
-                    s_low = s.lower()
-                    for m_name, m_num in PT_MONTHS_REVERSE.items():
-                        if re.search(rf"\b{m_name}\b", s_low):
-                            y_match = re.search(r"(20\d{2})", s_low)
-                            if y_match:
-                                month = m_num
-                                year = int(y_match.group(1))
-                                break
-
-    # Fallback: tenta extrair mês e ano do nome do arquivo (ex: 'Base_Maio_2026.xlsx')
-    if (year is None or month is None) and fallback_filename:
+    # Se não veio valor na célula, tenta extrair SOMENTE se o nome do arquivo tiver mês explícito em português
+    # (Ignora nomes automáticos de download do Databricks como 'New_Query_2026_10_26...')
+    if parsed is None and fallback_filename:
         fn_low = fallback_filename.lower()
-        for m_name, m_num in sorted(PT_MONTHS_REVERSE.items(), key=lambda x: -len(x[0])):
-            if m_name in fn_low:
-                y_match = re.search(r"(20\d{2})", fn_low)
-                if y_match:
-                    month = m_num
-                    year = int(y_match.group(1))
-                    break
-        if year is None or month is None:
-            m_fn_iso = re.search(r"(20\d{2})[_\-](\d{2})", fn_low)
-            if m_fn_iso:
-                y_cand, m_cand = int(m_fn_iso.group(1)), int(m_fn_iso.group(2))
-                if 1 <= m_cand <= 12:
-                    year, month = y_cand, m_cand
+        if not fn_low.startswith("new_query"):
+            parsed = try_parse_any_date(fallback_filename)
 
-    if year is None or month is None or not (1 <= month <= 12):
-        year, month = 2026, 10
+    if parsed is None:
+        return {
+            "iso_date": "",
+            "ano_mes": "--/----",
+            "label": "Base Não Identificada",
+        }
 
-    iso_date = f"{year:04d}-{month:02d}-01"
-    ano_mes = f"{month:02d}/{year:04d}"
-    label = f"Base {PT_MONTHS[month]} {year:04d}"
+    year, month = parsed
     return {
-        "iso_date": iso_date,
-        "ano_mes": ano_mes,
-        "label": label,
+        "iso_date": f"{year:04d}-{month:02d}-01",
+        "ano_mes": f"{month:02d}/{year:04d}",
+        "label": f"Base {PT_MONTHS[month]} {year:04d}",
     }
 
 
 class DatabricksHeadcountRepository(IHeadcountRepository):
     """
     Conector multi-estratégia para o Databricks Unity Catalog.
-    Suporta:
-    1. Token PAT (DATABRICKS_TOKEN)
-    2. OAuth M2M para Vercel (DATABRICKS_CLIENT_ID + DATABRICKS_CLIENT_SECRET)
-    3. OAuth U2M SSO via Navegador sem Token (DATABRICKS_USE_SSO=true APENAS em máquina local com tela)
     """
 
     def __init__(self) -> None:
@@ -134,10 +160,6 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
 
     @staticmethod
     def _is_headless_serverless() -> bool:
-        """
-        Detecta se o código está rodando na Vercel / AWS Lambda ou Linux sem interface gráfica.
-        Evita que o auth_type='databricks-oauth' trave o servidor por 300 segundos esperando navegador.
-        """
         if os.getenv("VERCEL") or os.getenv("VERCEL_ENV") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
             return True
         if sys.platform.startswith("linux") and not os.getenv("DISPLAY") and not os.getenv("WAYLAND_DISPLAY"):
@@ -196,7 +218,7 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
 
         raise EnvironmentError("Nenhum método de autenticação Databricks compatível configurado.")
 
-    def fetch_current_headcount(self, reference_date: str = "2026-10-01") -> List[HeadcountRecord]:
+    def fetch_current_headcount(self, reference_date: str = "") -> List[HeadcountRecord]:
         if not self.is_configured():
             raise EnvironmentError(
                 "Databricks não configurado para este ambiente. Usando base Excel/CSV."
@@ -204,6 +226,18 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
 
         date_info = parse_reference_date_info(reference_date)
         sql_ref_date = date_info["iso_date"]
+
+        # Se o utilizador informou uma data válida, filtra por ela; caso contrário, busca a mais recente do banco
+        if sql_ref_date:
+            where_date_clause = "AND ANO_MES_REFERENCIA = %(ref_date)s"
+            params = {"ref_date": sql_ref_date}
+        else:
+            where_date_clause = (
+                f"AND ANO_MES_REFERENCIA = ("
+                f"SELECT MAX(ANO_MES_REFERENCIA) FROM {self.catalog_table} WHERE DATA_RESCISAO IS NULL"
+                f")"
+            )
+            params = {}
 
         query = f"""
             SELECT 
@@ -214,7 +248,7 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
                 COUNT(CODIGO_CONTRATO) AS QTD_CONTRATOS
             FROM {self.catalog_table}
             WHERE DATA_RESCISAO IS NULL
-              AND ANO_MES_REFERENCIA = %(ref_date)s
+              {where_date_clause}
               AND VINCULO_EMPREGATICIO <> 'Estagiario'
             GROUP BY 
                 ANO_MES_REFERENCIA,
@@ -227,17 +261,18 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
         records: List[HeadcountRecord] = []
         with self._build_connection() as connection:
             with connection.cursor() as cursor:
-                cursor.execute(query, {"ref_date": sql_ref_date})
+                cursor.execute(query, params)
                 rows = cursor.fetchall()
                 for row in rows:
-                    row_ano_mes = getattr(row, "Ano_Mes", None) or getattr(row, "ANO_MES", None) or date_info["ano_mes"]
+                    raw_dt = getattr(row, "Ano_Mes", None) or getattr(row, "ANO_MES_REFERENCIA", None)
+                    row_info = parse_reference_date_info(raw_dt)
                     records.append(
                         HeadcountRecord(
                             segmento_des=str(row.SEGMENTO_DES).strip(),
                             area_des=str(row.AREA_DES).strip(),
                             unidade_des=str(row.UNIDADE_DES).strip(),
                             headcount=int(row.QTD_CONTRATOS),
-                            ano_mes_referencia=str(row_ano_mes).strip(),
+                            ano_mes_referencia=row_info["ano_mes"],
                         )
                     )
         return records
@@ -245,10 +280,10 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
 
 class ExcelHeadcountRepository(IHeadcountRepository):
     """
-    Repositório resiliente para leitura direta de extração Excel (.xlsx) ou CSV (.csv).
-    Suporta dinamicamente:
-    - O novo formato de 5 colunas: Ano_Mes, SEGMENTO_DES, AREA_DES, UNIDADE_DES, COUNT(CODIGO_CONTRATO)
-    - O formato anterior de 4 colunas: SEGMENTO_DES, AREA_DES, UNIDADE_DES, COUNT(CODIGO_CONTRATO)
+    Repositório inteligente para leitura de planilhas (.xlsx ou .csv).
+    Inspeciona tanto os cabeçalhos quanto os valores reais das células para localizar
+    automaticamente a coluna de data (mesmo que venha como '2026-05-01T00:00:00.000+00:00',
+    '05/2026', '2026-05-01' ou Timestamp do Excel, em qualquer posição da planilha).
     """
 
     def __init__(self, file_source: str | bytes, filename: str = "dados.xlsx") -> None:
@@ -256,7 +291,75 @@ class ExcelHeadcountRepository(IHeadcountRepository):
         self.raw_filename = filename.strip()
         self.filename = filename.lower().strip()
 
-    def fetch_current_headcount(self, reference_date: str = "2026-10-01") -> List[HeadcountRecord]:
+    @staticmethod
+    def _detect_columns(df: pd.DataFrame) -> tuple[Optional[Any], Any, Any, Any, Any]:
+        cols = list(df.columns)
+        col_date = None
+
+        # 1º Passo: Inspeciona os valores reais das células de cada coluna para achar a coluna de data!
+        for c in cols:
+            non_null_sample = df[c].dropna().head(10).tolist()
+            if not non_null_sample:
+                continue
+            date_matches = sum(1 for val in non_null_sample if try_parse_any_date(val) is not None)
+            if date_matches >= max(1, len(non_null_sample) // 2):
+                col_date = c
+                break
+
+        # 2º Passo: Se não achou pelo valor, verifica pelo nome do cabeçalho
+        if col_date is None:
+            for c in cols:
+                c_up = str(c).strip().upper()
+                if any(k in c_up for k in ("ANO_MES", "REFERENCIA", "DATA", "COMPETENCIA", "DATE_TRUNC", "TO_CHAR")):
+                    col_date = c
+                    break
+
+        remaining_cols = [c for c in cols if c != col_date]
+        if len(remaining_cols) < 4:
+            raise ValueError(
+                "A planilha deve conter as colunas SEGMENTO_DES, AREA_DES, UNIDADE_DES e a contagem de contratos."
+            )
+
+        col_seg = None
+        col_area = None
+        col_unit = None
+        col_count = None
+
+        for c in remaining_cols:
+            c_up = str(c).strip().upper()
+            if col_seg is None and "SEGMENTO" in c_up:
+                col_seg = c
+            elif col_area is None and ("AREA" in c_up or "ÁREA" in c_up):
+                col_area = c
+            elif col_unit is None and "UNIDADE" in c_up:
+                col_unit = c
+            elif col_count is None and any(k in c_up for k in ("COUNT", "QTD", "CONTRATO", "HEADCOUNT", "TOTAL")):
+                col_count = c
+
+        # Se a coluna numérica de contagem ainda não foi identificada pelo nome, detecta pelo tipo numérico
+        if col_count is None:
+            for c in reversed(remaining_cols):
+                if c in (col_seg, col_area, col_unit):
+                    continue
+                sample_num = pd.to_numeric(df[c].dropna().head(10), errors="coerce")
+                if sample_num.notna().sum() >= 1:
+                    col_count = c
+                    break
+
+        # Preenche eventuais colunas restantes pela ordem posicional
+        unused = [c for c in remaining_cols if c not in (col_seg, col_area, col_unit, col_count)]
+        if col_seg is None and unused:
+            col_seg = unused.pop(0)
+        if col_area is None and unused:
+            col_area = unused.pop(0)
+        if col_unit is None and unused:
+            col_unit = unused.pop(0)
+        if col_count is None and unused:
+            col_count = unused.pop(0)
+
+        return col_date, col_seg, col_area, col_unit, col_count
+
+    def fetch_current_headcount(self, reference_date: str = "") -> List[HeadcountRecord]:
         if isinstance(self.file_source, bytes):
             stream = io.BytesIO(self.file_source)
             if self.filename.endswith(".csv"):
@@ -278,54 +381,20 @@ class ExcelHeadcountRepository(IHeadcountRepository):
                 df = pd.read_excel(self.file_source, sheet_name=0, engine="openpyxl")
 
         df = df.dropna(how="all")
+        col_date, col_seg, col_area, col_unit, col_count = self._detect_columns(df)
 
-        if len(df.columns) < 4:
-            raise ValueError(
-                "O arquivo enviado deve conter pelo menos 4 colunas: "
-                "(Opcional: Ano_Mes), SEGMENTO_DES, AREA_DES, UNIDADE_DES e a contagem de contratos."
-            )
+        # Descobre a data da planilha varrendo a coluna de data (se existir)
+        detected_sheet_ano_mes = None
+        if col_date is not None:
+            for val in df[col_date].dropna():
+                parsed = try_parse_any_date(val)
+                if parsed is not None:
+                    detected_sheet_ano_mes = f"{parsed[1]:02d}/{parsed[0]:04d}"
+                    break
 
-        # Mapeamento inteligente de colunas por nome ou por posição (5 colunas vs 4 colunas)
-        col_date = None
-        col_seg = None
-        col_area = None
-        col_unit = None
-        col_count = None
-
-        for c in df.columns:
-            c_up = str(c).strip().upper()
-            if col_date is None and any(k in c_up for k in ("ANO_MES", "REFERENCIA", "DATA", "COMPETENCIA")):
-                col_date = c
-            elif col_seg is None and "SEGMENTO" in c_up:
-                col_seg = c
-            elif col_area is None and ("AREA" in c_up or "ÁREA" in c_up):
-                col_area = c
-            elif col_unit is None and "UNIDADE" in c_up:
-                col_unit = c
-            elif col_count is None and any(k in c_up for k in ("COUNT", "QTD", "CONTRATO", "HEADCOUNT", "TOTAL")):
-                col_count = c
-
-        # Fallback posicional caso os cabeçalhos estejam customizados
-        if len(df.columns) >= 5:
-            col_date = col_date if col_date is not None else df.columns[0]
-            col_seg = col_seg if col_seg is not None else df.columns[1]
-            col_area = col_area if col_area is not None else df.columns[2]
-            col_unit = col_unit if col_unit is not None else df.columns[3]
-            col_count = col_count if col_count is not None else df.columns[4]
-        else:
-            col_seg = col_seg if col_seg is not None else df.columns[0]
-            col_area = col_area if col_area is not None else df.columns[1]
-            col_unit = col_unit if col_unit is not None else df.columns[2]
-            col_count = col_count if col_count is not None else df.columns[3]
-
-        # Determina a competência padrão caso a planilha tenha apenas 4 colunas (inferindo pelo nome do arquivo se possível)
-        fallback_info = parse_reference_date_info(
-            raw_value=None,
-            fallback_filename=self.raw_filename,
-        )
-        # Se o nome do arquivo não tinha mês/ano explícito, usa o reference_date informado
-        if fallback_info["iso_date"] == "2026-10-01" and "outubro" not in self.filename and "2026_10" not in self.filename:
-            fallback_info = parse_reference_date_info(reference_date, fallback_filename=self.raw_filename)
+        if not detected_sheet_ano_mes:
+            fallback_info = parse_reference_date_info(raw_value=None, fallback_filename=self.raw_filename)
+            detected_sheet_ano_mes = fallback_info["ano_mes"]
 
         records: List[HeadcountRecord] = []
         for _, row in df.iterrows():
@@ -335,11 +404,11 @@ class ExcelHeadcountRepository(IHeadcountRepository):
             if pd.isna(raw_count):
                 continue
 
+            row_ano_mes = detected_sheet_ano_mes
             if col_date is not None and not pd.isna(row[col_date]):
-                row_date_info = parse_reference_date_info(row[col_date], fallback_filename=self.raw_filename)
-                ref_ano_mes = row_date_info["ano_mes"]
-            else:
-                ref_ano_mes = fallback_info["ano_mes"]
+                parsed_row = try_parse_any_date(row[col_date])
+                if parsed_row is not None:
+                    row_ano_mes = f"{parsed_row[1]:02d}/{parsed_row[0]:04d}"
 
             records.append(
                 HeadcountRecord(
@@ -347,7 +416,7 @@ class ExcelHeadcountRepository(IHeadcountRepository):
                     area_des=str(row[col_area]).strip() if not pd.isna(row[col_area]) else "",
                     unidade_des=str(row[col_unit]).strip(),
                     headcount=int(round(float(raw_count))),
-                    ano_mes_referencia=ref_ano_mes,
+                    ano_mes_referencia=row_ano_mes,
                 )
             )
         return records

@@ -20,6 +20,7 @@ from src.domain.interfaces import IHeadcountRepository
 from src.infrastructure.databricks_repository import (
     DatabricksHeadcountRepository,
     ExcelHeadcountRepository,
+    parse_reference_date_info,
 )
 from src.services.analytics_service import PeopleAnalyticsService
 from src.services.updater_service import PresentationUpdaterService
@@ -28,7 +29,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_FILE_PATH = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=ENV_FILE_PATH, override=True)
 
-DEFAULT_EXCEL_PATH = PROJECT_ROOT / "data" / "input" / "New_Query_2026_09_10_14_47_53 (1).xlsx"
 MAPPING_JSON_PATH = PROJECT_ROOT / "config" / "slide_mapping.json"
 WEB_INDEX_PATH = PROJECT_ROOT / "web" / "index.html"
 TMP_UPLOAD_CACHE_PATH = Path(tempfile.gettempdir()) / "si_pa_uploaded_records.json"
@@ -38,7 +38,7 @@ APP_SECRET = (os.getenv("APP_SECRET_KEY") or "cni-secret-key-2026").strip()
 
 app = FastAPI(
     title="Sistema Indústria | People Analytics - Estrutura Organizacional",
-    version="1.4.0",
+    version="1.6.0",
 )
 
 app.add_middleware(
@@ -48,9 +48,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Cache em memória e armazenamento de base enviada manualmente via Upload Web
 _HEADCOUNT_CACHE: dict[str, tuple[List[HeadcountRecord], str]] = {}
 _CUSTOM_UPLOADED_DATA: Optional[tuple[List[HeadcountRecord], str]] = None
+
+
+def _resolve_metadata_from_records(
+    records: List[HeadcountRecord],
+    fallback_ref: str = "",
+    fallback_filename: str = "",
+) -> dict[str, str]:
+    """
+    Extrai dinamicamente a data de referência a partir dos registros lidos da planilha ou do Databricks.
+    """
+    if records:
+        for r in records:
+            if r.ano_mes_referencia and r.ano_mes_referencia != "--/----":
+                info = parse_reference_date_info(r.ano_mes_referencia, fallback_filename=fallback_filename)
+                if info["ano_mes"] != "--/----":
+                    return info
+    return parse_reference_date_info(fallback_ref, fallback_filename=fallback_filename)
 
 
 def _save_uploaded_to_tmp(records: List[HeadcountRecord], source_label: str) -> None:
@@ -145,19 +161,32 @@ def get_repository() -> tuple[Optional[IHeadcountRepository], str]:
         return db_repo, "Databricks Unity Catalog (Live)"
 
     env_excel = (os.getenv("FALLBACK_EXCEL_PATH") or "").strip()
-    excel_path = Path(env_excel) if env_excel else DEFAULT_EXCEL_PATH
-    if not excel_path.is_absolute():
-        excel_path = PROJECT_ROOT / excel_path
-
-    if excel_path.exists():
-        return ExcelHeadcountRepository(str(excel_path), excel_path.name), f"Base Padrão ({excel_path.name})"
+    if env_excel:
+        excel_path = Path(env_excel)
+        if not excel_path.is_absolute():
+            excel_path = PROJECT_ROOT / excel_path
+        if excel_path.exists():
+            return ExcelHeadcountRepository(str(excel_path), excel_path.name), f"Base Local ({excel_path.name})"
 
     return None, "Aguardando Upload de Planilha (.xlsx/.csv)"
 
 
-def fetch_cached_records(reference_date: str, force_refresh: bool = False) -> tuple[List[HeadcountRecord], str]:
+def fetch_cached_records(reference_date: str = "", force_refresh: bool = False) -> tuple[List[HeadcountRecord], str]:
     global _CUSTOM_UPLOADED_DATA
 
+    repo, source_label = get_repository()
+
+    # Se não há conexão direta ao Databricks (ex: Vercel), NUNCA apaga a planilha enviada pelo utilizador!
+    if repo is None:
+        if _CUSTOM_UPLOADED_DATA is not None:
+            return _CUSTOM_UPLOADED_DATA
+        tmp_loaded = _load_uploaded_from_tmp()
+        if tmp_loaded is not None:
+            _CUSTOM_UPLOADED_DATA = tmp_loaded
+            return tmp_loaded
+        return [], "Aguardando Upload de Planilha (.xlsx/.csv)"
+
+    # Se o utilizador subiu uma planilha e não pediu refresh explícito do Databricks, usa a planilha
     if not force_refresh:
         if _CUSTOM_UPLOADED_DATA is not None:
             return _CUSTOM_UPLOADED_DATA
@@ -166,24 +195,23 @@ def fetch_cached_records(reference_date: str, force_refresh: bool = False) -> tu
             _CUSTOM_UPLOADED_DATA = tmp_loaded
             return tmp_loaded
 
-    if force_refresh or reference_date not in _HEADCOUNT_CACHE:
+    norm_key = parse_reference_date_info(reference_date)["iso_date"] or "LATEST"
+
+    if force_refresh or norm_key not in _HEADCOUNT_CACHE:
         try:
-            repo, source_label = get_repository()
-            if repo is None:
-                return [], source_label
             records = repo.fetch_current_headcount(reference_date)
-            _HEADCOUNT_CACHE[reference_date] = (records, source_label)
+            _HEADCOUNT_CACHE[norm_key] = (records, source_label)
             if force_refresh:
                 _CUSTOM_UPLOADED_DATA = None
         except Exception:
-            if DEFAULT_EXCEL_PATH.exists():
-                fallback_repo = ExcelHeadcountRepository(str(DEFAULT_EXCEL_PATH), DEFAULT_EXCEL_PATH.name)
-                records = fallback_repo.fetch_current_headcount(reference_date)
-                _HEADCOUNT_CACHE[reference_date] = (records, f"Fallback Local ({DEFAULT_EXCEL_PATH.name})")
-            else:
-                return [], "Aguardando Upload de Planilha (.xlsx/.csv)"
+            if _CUSTOM_UPLOADED_DATA is not None:
+                return _CUSTOM_UPLOADED_DATA
+            tmp_loaded = _load_uploaded_from_tmp()
+            if tmp_loaded is not None:
+                return tmp_loaded
+            return [], "Aguardando Upload de Planilha (.xlsx/.csv)"
 
-    return _HEADCOUNT_CACHE.get(reference_date, ([], "Aguardando Upload de Planilha (.xlsx/.csv)"))
+    return _HEADCOUNT_CACHE.get(norm_key, ([], "Aguardando Upload de Planilha (.xlsx/.csv)"))
 
 
 @app.post("/api/login")
@@ -237,12 +265,10 @@ async def serve_dashboard():
 async def upload_headcount_data_endpoint(
     request: Request,
     data_file: UploadFile = File(...),
-    reference_date: str = Form("2026-10-01"),
 ):
     """
-    Lê a planilha (.xlsx ou .csv) em memória, salva em cache e em /tmp, e já devolve
-    o objeto completo `data` (summary) para que o frontend atualize a tela instantaneamente
-    sem depender de segunda chamada na Vercel.
+    Lê a planilha (.xlsx ou .csv) e extrai dinamicamente a data preenchida dentro do arquivo
+    (ex: '2026-05-01T00:00:00.000+00:00', '05/2026', '2026-05-01', etc.), ignorando qualquer data fixa anterior.
     """
     global _CUSTOM_UPLOADED_DATA
     require_auth(request, allow_viewer=False)
@@ -257,10 +283,17 @@ async def upload_headcount_data_endpoint(
     try:
         raw_bytes = await data_file.read()
         repo = ExcelHeadcountRepository(raw_bytes, filename=data_file.filename or "upload.xlsx")
-        records = repo.fetch_current_headcount(reference_date)
+        records = repo.fetch_current_headcount()
+
+        meta = _resolve_metadata_from_records(
+            records,
+            fallback_ref="",
+            fallback_filename=data_file.filename or "",
+        )
         source_label = f"Upload Web ({data_file.filename})"
         _CUSTOM_UPLOADED_DATA = (records, source_label)
-        _HEADCOUNT_CACHE[reference_date] = (records, source_label)
+        if meta["iso_date"]:
+            _HEADCOUNT_CACHE[meta["iso_date"]] = (records, source_label)
         _save_uploaded_to_tmp(records, source_label)
 
         summary = PeopleAnalyticsService.build_organization_summary(records=records)
@@ -268,8 +301,9 @@ async def upload_headcount_data_endpoint(
             content={
                 "status": "success",
                 "source": source_label,
-                "reference_date": reference_date,
-                "default_label": os.getenv("DEFAULT_REFERENCE_LABEL", "Base Outubro 2026"),
+                "reference_date": meta["ano_mes"],
+                "iso_reference_date": meta["iso_date"],
+                "default_label": meta["label"],
                 "total_records": len(records),
                 "total_headcount": summary["total_headcount"],
                 "data": summary,
@@ -290,9 +324,14 @@ async def get_organization_headcount(
     refresh: bool = Query(False),
 ):
     require_auth(request, allow_viewer=True)
-    ref_date = reference_date or os.getenv("DEFAULT_REFERENCE_DATE", "2026-10-01")
+    ref_date = (reference_date or "").strip()
     try:
         records, source_label = fetch_cached_records(ref_date, force_refresh=refresh)
+        meta = _resolve_metadata_from_records(
+            records,
+            fallback_ref=ref_date if records else "",
+            fallback_filename=source_label if records else "",
+        )
         summary = PeopleAnalyticsService.build_organization_summary(
             records=records,
             segmento_filter=segmento,
@@ -303,8 +342,9 @@ async def get_organization_headcount(
             content={
                 "status": "success",
                 "source": source_label,
-                "reference_date": ref_date,
-                "default_label": os.getenv("DEFAULT_REFERENCE_LABEL", "Base Outubro 2026"),
+                "reference_date": meta["ano_mes"],
+                "iso_reference_date": meta["iso_date"],
+                "default_label": meta["label"],
                 "data": summary,
             }
         )
@@ -317,8 +357,8 @@ async def update_powerpoint_endpoint(
     request: Request,
     file: UploadFile = File(...),
     data_file: Optional[UploadFile] = File(None),
-    reference_date: str = Form("2026-10-01"),
-    reference_label: str = Form("Base Outubro 2026"),
+    reference_date: str = Form(""),
+    reference_label: str = Form(""),
     custom_overrides_json: str = Form("[]"),
     auto_layout: bool = Form(True),
 ):
@@ -334,15 +374,23 @@ async def update_powerpoint_endpoint(
         if data_file and data_file.filename:
             data_bytes = await data_file.read()
             temp_repo = ExcelHeadcountRepository(data_bytes, filename=data_file.filename)
-            records = temp_repo.fetch_current_headcount(reference_date)
+            records = temp_repo.fetch_current_headcount()
+            meta = _resolve_metadata_from_records(records, "", data_file.filename)
         else:
-            records, _ = fetch_cached_records(reference_date)
+            records, source_label = fetch_cached_records(reference_date)
+            meta = _resolve_metadata_from_records(records, reference_date, source_label)
 
         if not records:
             raise HTTPException(
                 status_code=400,
                 detail="Nenhuma base de Headcount ativa. Suba primeiro a planilha (.xlsx/.csv) no botão 'Subir Base'.",
             )
+
+        clean_req_label = reference_label.strip()
+        if clean_req_label and clean_req_label not in ("Base Não Identificada", "Aguardando Base"):
+            effective_label = clean_req_label
+        else:
+            effective_label = meta["label"]
 
         if not MAPPING_JSON_PATH.exists():
             raise FileNotFoundError(f"Arquivo de mapeamento não encontrado: {MAPPING_JSON_PATH}")
@@ -351,7 +399,7 @@ async def update_powerpoint_endpoint(
         updated_pptx_bytes, report = updater.execute_update(
             pptx_stream=pptx_stream,
             records=records,
-            reference_label=reference_label,
+            reference_label=effective_label,
             original_filename=file.filename,
             custom_overrides=custom_overrides,
             auto_layout=auto_layout,

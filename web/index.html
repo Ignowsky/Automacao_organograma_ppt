@@ -301,9 +301,9 @@
 
       <form onsubmit="handleCustomDataUpload(event)" class="p-6 space-y-4">
         <div class="bg-cni-lightest/60 border border-cni-lighter rounded-lg p-3.5 text-xs text-slate-700 space-y-1.5">
-          <div class="font-bold text-cni-dark">Como funciona:</div>
-          <p>Execute a query SQL no Databricks, exporte o resultado como <b>Excel (.xlsx)</b> ou <b>CSV (.csv)</b> e anexe abaixo. A data de referência (<b>Ano_Mes</b>) será reconhecida automaticamente!</p>
-          <p class="text-[11px] text-slate-500 font-mono">Colunas esperadas: Ano_Mes, SEGMENTO_DES, AREA_DES, UNIDADE_DES, COUNT(CODIGO_CONTRATO)</p>
+          <div class="font-bold text-cni-dark">Leitura Dinâmica de Data:</div>
+          <p>Anexe a planilha extraída do Databricks (<b>.xlsx</b> ou <b>.csv</b>). O portal detecta automaticamente a data preenchida nas células (seja <code>05/2026</code>, <code>2026-05-01</code> ou <code>2026-05-01T00:00:00.000+00:00</code>).</p>
+          <p class="text-[11px] text-slate-500 font-mono">Colunas: ANO_MES_REFERENCIA (ou Ano_Mes), SEGMENTO_DES, AREA_DES, UNIDADE_DES, COUNT(CODIGO_CONTRATO)</p>
         </div>
 
         <div class="border-2 border-dashed border-cni-medium/40 rounded-xl p-4 bg-slate-50">
@@ -356,12 +356,12 @@
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           <span id="datasource-badge" class="text-xs font-medium text-slate-200">Conectando...</span>
         </div>
-        <div class="flex items-center bg-cni-darkest/60 rounded border border-white/15 px-2.5 py-1" title="Competência ativa (MM/yyyy ou yyyy-MM-dd)">
+        <div class="flex items-center bg-cni-darkest/60 rounded border border-white/15 px-2.5 py-1" title="Competência lida dinamicamente do arquivo">
           <span class="text-[10px] uppercase text-slate-300 mr-2 font-semibold">Ref:</span>
-          <input id="ref-date-input" type="text" value="10/2026" onchange="onManualRefDateChange()"
+          <input id="ref-date-input" type="text" value="" placeholder="--/----" onchange="onManualRefDateChange()"
                  class="bg-transparent text-xs font-mono text-white w-24 focus:outline-none text-center" />
         </div>
-        <button type="button" onclick="loadHeadcount(true)" title="Tentar sincronizar direto do Databricks para a data de referência informada"
+        <button type="button" onclick="loadHeadcount(true)" title="Recarregar dados da fonte ativa"
                 class="btn secondary btn-small">
           Sincronizar
         </button>
@@ -400,7 +400,7 @@
           <span>📥</span> Exportar Visão (.CSV)
         </button>
         <span id="header-ref-label" class="hidden md:inline-block text-xs font-bold uppercase tracking-wider bg-cni-lightest border border-cni-lighter text-cni-pure px-3.5 py-1 rounded-full">
-          Base Outubro 2026
+          Aguardando Base
         </span>
       </div>
     </div>
@@ -567,7 +567,7 @@
                   Apresentação PowerPoint Base (.pptx)
                 </label>
                 <span id="active-data-source-pill" class="text-[11px] font-semibold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
-                  Usando dados sincronizados no Portal
+                  Aguardando Base de Dados
                 </span>
               </div>
               <input id="pptx-file" type="file" accept=".pptx" required onchange="onPptxFileSelected()"
@@ -576,7 +576,7 @@
             <div class="space-y-3">
               <div>
                 <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Tag de Data Base nos 11 Slides</label>
-                <input id="pptx-ref-label" type="text" value="Base Outubro 2026" required
+                <input id="pptx-ref-label" type="text" value="" placeholder="Preenchido automaticamente pela planilha" required
                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-cni-dark" />
               </div>
 
@@ -616,7 +616,7 @@
               </div>
               <div>
                 <span class="text-[11px] font-bold text-slate-400 uppercase block">Total Geral CNI (Recalculado)</span>
-                <span id="rep-total-cni" class="text-xl font-extrabold text-cni-pure">938</span>
+                <span id="rep-total-cni" class="text-xl font-extrabold text-cni-pure">--</span>
               </div>
               <div>
                 <span class="text-[11px] font-bold text-slate-400 uppercase block">Elementos Atualizados</span>
@@ -783,7 +783,6 @@
       9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
     };
 
-    // Sincroniza o label 'Base Mês Ano' caso o utilizador digite manualmente no campo REF:
     function formatRefToLabelClient(rawRef) {
       const s = String(rawRef || '').trim();
       let m = null, y = null;
@@ -1095,17 +1094,23 @@
       document.getElementById('data-upload-modal').classList.toggle('hidden', !show);
     }
 
-    // Sincroniza todos os indicadores de data e headcount do portal
     function applyHeadcountResponse(json, isFullUnfiltered = false) {
       document.getElementById('datasource-badge').textContent = json.source;
-      document.getElementById('active-data-source-pill').textContent = `Fonte Ativa: ${json.source}`;
 
-      if (json.reference_date) {
+      if (json.reference_date && json.reference_date !== '--/----') {
         document.getElementById('ref-date-input').value = json.reference_date;
+      } else if (isFullUnfiltered) {
+        document.getElementById('ref-date-input').value = '';
       }
-      if (json.default_label) {
+
+      if (json.default_label && json.default_label !== 'Base Não Identificada') {
         document.getElementById('header-ref-label').textContent = json.default_label;
         document.getElementById('pptx-ref-label').value = json.default_label;
+        document.getElementById('active-data-source-pill').textContent =
+          `Fonte Ativa: ${json.source} · ${json.default_label}`;
+      } else {
+        document.getElementById('header-ref-label').textContent = 'Aguardando Base';
+        document.getElementById('active-data-source-pill').textContent = `Fonte: ${json.source}`;
       }
 
       const data = json.data;
@@ -1209,36 +1214,37 @@
       };
     }
 
+    async function uploadAndSyncSpreadsheetFile(selectedFile) {
+      const formData = new FormData();
+      formData.append('data_file', selectedFile);
+
+      const res = await fetch('/api/upload-headcount-data', { method: 'POST', body: formData });
+      const json = await safeParseJson(res);
+      if (!res.ok) throw new Error(json.detail || 'Erro ao carregar planilha.');
+
+      currentUploadedDataFile = selectedFile;
+      document.getElementById('filter-segmento').value = 'TODOS';
+      document.getElementById('filter-area').value = 'TODAS';
+      document.getElementById('filter-search').value = '';
+
+      applyHeadcountResponse(json, true);
+      document.getElementById('active-data-source-pill').textContent =
+        `Base Ativa: ${selectedFile.name} · Ref ${json.reference_date} (${json.total_headcount} contratos)`;
+    }
+
     async function handleCustomDataUpload(event) {
       event.preventDefault();
       const fileInput = document.getElementById('custom-data-file-input');
-      const refDate = document.getElementById('ref-date-input').value;
       const btn = document.getElementById('btn-upload-data-submit');
 
       if (!fileInput.files.length) return;
       const selectedFile = fileInput.files[0];
 
-      const formData = new FormData();
-      formData.append('data_file', selectedFile);
-      formData.append('reference_date', refDate);
-
       btn.disabled = true;
-      btn.textContent = 'Processando Planilha...';
+      btn.textContent = 'Lendo Data e Contratos...';
 
       try {
-        const res = await fetch('/api/upload-headcount-data', { method: 'POST', body: formData });
-        const json = await safeParseJson(res);
-        if (!res.ok) throw new Error(json.detail || 'Erro ao carregar planilha.');
-
-        currentUploadedDataFile = selectedFile;
-        document.getElementById('filter-segmento').value = 'TODOS';
-        document.getElementById('filter-area').value = 'TODAS';
-        document.getElementById('filter-search').value = '';
-
-        // Atualiza dados e sincroniza automaticamente REF (ex: 05/2026) + Label (ex: Base Maio 2026)
-        applyHeadcountResponse(json, true);
-        document.getElementById('active-data-source-pill').textContent =
-          `Base Ativa: ${selectedFile.name} · Ref ${json.reference_date} (${json.total_headcount} contratos)`;
+        await uploadAndSyncSpreadsheetFile(selectedFile);
         toggleDataUploadModal(false);
       } catch (err) {
         alert(err.message);
@@ -1293,15 +1299,21 @@
     }
 
     async function loadHeadcount(forceRefresh = false) {
+      // Se o utilizador clicou em "Sincronizar" e já possui uma planilha anexada na sessão,
+      // re-sincroniza a própria planilha anexada sem perdê-la!
+      if (forceRefresh && currentUploadedDataFile) {
+        try {
+          await uploadAndSyncSpreadsheetFile(currentUploadedDataFile);
+        } catch (err) {
+          alert(err.message);
+        }
+        return;
+      }
+
       const refDate = document.getElementById('ref-date-input').value;
       const seg = document.getElementById('filter-segmento').value;
       const area = document.getElementById('filter-area').value;
       const search = document.getElementById('filter-search').value;
-
-      if (forceRefresh) {
-        currentUploadedDataFile = null;
-        fullHierarchyCache = null;
-      }
 
       if (!forceRefresh && fullHierarchyCache && Object.keys(fullHierarchyCache).length > 0) {
         const localData = filterHierarchyClientSide(seg, area, search);
@@ -1399,12 +1411,12 @@
       if (entries.length === 0) {
         container.innerHTML = `
           <div class="bg-white rounded-2xl border border-cni-lighter p-8 text-center space-y-3">
-            <div class="text-base font-bold text-cni-dark">Nenhum registro exibido para o filtro atual</div>
+            <div class="text-base font-bold text-cni-dark">Nenhuma base carregada no momento</div>
             <p class="text-xs text-slate-500 max-w-md mx-auto">
-              Clique em <b>"Resetar"</b> para voltar à visão completa ou em <b>"📤 Subir Base (.xlsx/.csv)"</b> no topo direito para carregar uma nova extração.
+              Clique no botão <b>"📤 Subir Base (.xlsx/.csv)"</b> no topo direito para anexar a planilha extraída do Databricks. A data de referência será lida automaticamente das células do arquivo.
             </p>
             <div>
-              <button type="button" onclick="resetFilters()" class="btn secondary btn-small">↺ Limpar Filtros</button>
+              <button type="button" onclick="toggleDataUploadModal(true)" class="btn portal-btn primary btn-small">📤 Subir Planilha Agora</button>
             </div>
           </div>
         `;
@@ -1532,7 +1544,7 @@
     }
 
     function exportFilteredToCSV() {
-      const refVal = document.getElementById('ref-date-input').value || '10/2026';
+      const refVal = document.getElementById('ref-date-input').value || '--/----';
       const rows = [['Ano_Mes', 'SEGMENTO_DES', 'AREA_DES', 'UNIDADE_DES', 'GESTOR', 'HEADCOUNT']];
       Object.entries(lastFilteredHierarchy).forEach(([segName, segObj]) => {
         Object.entries(segObj.areas).forEach(([areaName, areaObj]) => {
@@ -1674,7 +1686,7 @@
       formData.append('auto_layout', autoLayout);
 
       progressWrapper.classList.remove('hidden');
-      progressStatus.textContent = `Processando "${fileInput.files[0].name}" (${refLabel})...`;
+      progressStatus.textContent = `Processando "${fileInput.files[0].name}" (${refLabel || 'Data automática'})...`;
       progressStage.textContent = '1/3 · Lendo XML e mapeando Shapes';
       progress_bar(0, 45, '#progressbar21', true);
 
@@ -1703,6 +1715,11 @@
 
         const rep = json.report;
         currentAuditChanges = rep.changes;
+
+        if (rep.reference_label) {
+          document.getElementById('pptx-ref-label').value = rep.reference_label;
+          document.getElementById('header-ref-label').textContent = rep.reference_label;
+        }
 
         document.getElementById('rep-slides').textContent = `${rep.slides_before} / ${rep.slides_after}`;
         document.getElementById('rep-total-cni').textContent = rep.total_company_headcount;
