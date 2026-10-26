@@ -302,8 +302,8 @@
       <form onsubmit="handleCustomDataUpload(event)" class="p-6 space-y-4">
         <div class="bg-cni-lightest/60 border border-cni-lighter rounded-lg p-3.5 text-xs text-slate-700 space-y-1.5">
           <div class="font-bold text-cni-dark">Como funciona:</div>
-          <p>Caso o Databricks não esteja conectado por Token na Vercel, execute a query SQL no Databricks, exporte o resultado como <b>Excel (.xlsx)</b> ou <b>CSV (.csv)</b> e anexe abaixo.</p>
-          <p class="text-[11px] text-slate-500 font-mono">Colunas esperadas: SEGMENTO_DES, AREA_DES, UNIDADE_DES, count(CODIGO_CONTRATO)</p>
+          <p>Execute a query SQL no Databricks, exporte o resultado como <b>Excel (.xlsx)</b> ou <b>CSV (.csv)</b> e anexe abaixo. A data de referência (<b>Ano_Mes</b>) será reconhecida automaticamente!</p>
+          <p class="text-[11px] text-slate-500 font-mono">Colunas esperadas: Ano_Mes, SEGMENTO_DES, AREA_DES, UNIDADE_DES, COUNT(CODIGO_CONTRATO)</p>
         </div>
 
         <div class="border-2 border-dashed border-cni-medium/40 rounded-xl p-4 bg-slate-50">
@@ -356,12 +356,12 @@
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           <span id="datasource-badge" class="text-xs font-medium text-slate-200">Conectando...</span>
         </div>
-        <div class="flex items-center bg-cni-darkest/60 rounded border border-white/15 px-2.5 py-1">
+        <div class="flex items-center bg-cni-darkest/60 rounded border border-white/15 px-2.5 py-1" title="Competência ativa (MM/yyyy ou yyyy-MM-dd)">
           <span class="text-[10px] uppercase text-slate-300 mr-2 font-semibold">Ref:</span>
-          <input id="ref-date-input" type="text" value="2026-10-01"
+          <input id="ref-date-input" type="text" value="10/2026" onchange="onManualRefDateChange()"
                  class="bg-transparent text-xs font-mono text-white w-24 focus:outline-none text-center" />
         </div>
-        <button type="button" onclick="loadHeadcount(true)" title="Tentar sincronizar direto do Databricks"
+        <button type="button" onclick="loadHeadcount(true)" title="Tentar sincronizar direto do Databricks para a data de referência informada"
                 class="btn secondary btn-small">
           Sincronizar
         </button>
@@ -777,6 +777,42 @@
     let currentActiveTab = 'explorer';
     let progressTimer = null;
 
+    const PT_MONTH_NAMES = {
+      1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
+      5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+      9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+    };
+
+    // Sincroniza o label 'Base Mês Ano' caso o utilizador digite manualmente no campo REF:
+    function formatRefToLabelClient(rawRef) {
+      const s = String(rawRef || '').trim();
+      let m = null, y = null;
+      const mSlash = s.match(/^(\d{1,2})[\/\-](\d{4})$/);
+      if (mSlash) {
+        m = parseInt(mSlash[1], 10);
+        y = parseInt(mSlash[2], 10);
+      } else {
+        const mIso = s.match(/^(\d{4})[\/\-](\d{1,2})/);
+        if (mIso) {
+          y = parseInt(mIso[1], 10);
+          m = parseInt(mIso[2], 10);
+        }
+      }
+      if (m && y && PT_MONTH_NAMES[m]) {
+        return `Base ${PT_MONTH_NAMES[m]} ${y}`;
+      }
+      return null;
+    }
+
+    function onManualRefDateChange() {
+      const val = document.getElementById('ref-date-input').value;
+      const computedLabel = formatRefToLabelClient(val);
+      if (computedLabel) {
+        document.getElementById('header-ref-label').textContent = computedLabel;
+        document.getElementById('pptx-ref-label').value = computedLabel;
+      }
+    }
+
     // =====================================================================
     // 1. CONTROLE DA BARRA DE PROGRESSO CNI (SÓ CARREGA AO PROCESSAR PPTX)
     // =====================================================================
@@ -815,7 +851,6 @@
     }
 
     function onPptxFileSelected() {
-      // Quando o utilizador escolhe um novo arquivo .pptx, esconde e zera a barra até que ele clique em Processar
       const wrapper = document.getElementById('pptx-progress-wrapper');
       if (wrapper) wrapper.classList.add('hidden');
       progress_bar(0, 0, '#progressbar21', false);
@@ -831,7 +866,6 @@
       menu.classList.toggle('hidden', !show);
     }
 
-    // Fecha o menu "..." se clicar fora
     document.addEventListener('click', (e) => {
       const menu = document.getElementById('breadcrumb-dots-menu');
       if (!menu || menu.classList.contains('hidden')) return;
@@ -864,7 +898,6 @@
       if (segSelect && segName) {
         segSelect.value = segName;
       }
-      // Atualiza lista de áreas primeiro e seleciona a área clicada
       loadHeadcount(false).then(() => {
         if (areaSelect) {
           areaSelect.value = areaName;
@@ -1037,7 +1070,6 @@
       bc.innerHTML = html;
     }
 
-    // Parser seguro contra erros 500/504 em texto puro da Vercel
     async function safeParseJson(res) {
       const rawText = await res.text();
       try {
@@ -1063,11 +1095,17 @@
       document.getElementById('data-upload-modal').classList.toggle('hidden', !show);
     }
 
+    // Sincroniza todos os indicadores de data e headcount do portal
     function applyHeadcountResponse(json, isFullUnfiltered = false) {
       document.getElementById('datasource-badge').textContent = json.source;
       document.getElementById('active-data-source-pill').textContent = `Fonte Ativa: ${json.source}`;
+
+      if (json.reference_date) {
+        document.getElementById('ref-date-input').value = json.reference_date;
+      }
       if (json.default_label) {
         document.getElementById('header-ref-label').textContent = json.default_label;
+        document.getElementById('pptx-ref-label').value = json.default_label;
       }
 
       const data = json.data;
@@ -1197,8 +1235,10 @@
         document.getElementById('filter-area').value = 'TODAS';
         document.getElementById('filter-search').value = '';
 
+        // Atualiza dados e sincroniza automaticamente REF (ex: 05/2026) + Label (ex: Base Maio 2026)
         applyHeadcountResponse(json, true);
-        document.getElementById('active-data-source-pill').textContent = `Base Ativa: ${selectedFile.name} (${json.total_headcount} contratos)`;
+        document.getElementById('active-data-source-pill').textContent =
+          `Base Ativa: ${selectedFile.name} · Ref ${json.reference_date} (${json.total_headcount} contratos)`;
         toggleDataUploadModal(false);
       } catch (err) {
         alert(err.message);
@@ -1268,6 +1308,7 @@
         if (localData) {
           applyHeadcountResponse({
             source: document.getElementById('datasource-badge').textContent,
+            reference_date: document.getElementById('ref-date-input').value,
             default_label: document.getElementById('header-ref-label').textContent,
             data: localData
           }, false);
@@ -1491,11 +1532,13 @@
     }
 
     function exportFilteredToCSV() {
-      const rows = [['SEGMENTO_DES', 'AREA_DES', 'UNIDADE_DES', 'GESTOR', 'HEADCOUNT']];
+      const refVal = document.getElementById('ref-date-input').value || '10/2026';
+      const rows = [['Ano_Mes', 'SEGMENTO_DES', 'AREA_DES', 'UNIDADE_DES', 'GESTOR', 'HEADCOUNT']];
       Object.entries(lastFilteredHierarchy).forEach(([segName, segObj]) => {
         Object.entries(segObj.areas).forEach(([areaName, areaObj]) => {
           areaObj.unidades.forEach(u => {
             rows.push([
+              `"${refVal}"`,
               `"${segName}"`,
               `"${areaName}"`,
               `"${u.unidade_des}"`,
@@ -1511,7 +1554,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Headcount_Sistema_Industria_${document.getElementById('ref-date-input').value}.csv`;
+      a.download = `Headcount_Sistema_Industria_${refVal.replace('/', '_')}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -1630,9 +1673,8 @@
       formData.append('custom_overrides_json', JSON.stringify(manualOverrides));
       formData.append('auto_layout', autoLayout);
 
-      // Mostra e inicia a barra de progresso SOMENTE agora que o PPTX foi anexado e enviado
       progressWrapper.classList.remove('hidden');
-      progressStatus.textContent = `Processando "${fileInput.files[0].name}"...`;
+      progressStatus.textContent = `Processando "${fileInput.files[0].name}" (${refLabel})...`;
       progressStage.textContent = '1/3 · Lendo XML e mapeando Shapes';
       progress_bar(0, 45, '#progressbar21', true);
 
