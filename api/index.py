@@ -11,7 +11,7 @@ from pathlib import Path
 from dataclasses import asdict
 from typing import Optional, List
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -32,13 +32,14 @@ load_dotenv(dotenv_path=ENV_FILE_PATH, override=True)
 MAPPING_JSON_PATH = PROJECT_ROOT / "config" / "slide_mapping.json"
 WEB_INDEX_PATH = PROJECT_ROOT / "web" / "index.html"
 TMP_UPLOAD_CACHE_PATH = Path(tempfile.gettempdir()) / "si_pa_uploaded_records.json"
+TMP_AUDIT_LOG_PATH = Path(tempfile.gettempdir()) / "si_pa_session_audit_log.json"
 
 COOKIE_NAME = "si_pa_session"
 APP_SECRET = (os.getenv("APP_SECRET_KEY") or "cni-secret-key-2026").strip()
 
 app = FastAPI(
     title="Sistema Indústria | People Analytics - Estrutura Organizacional",
-    version="1.6.0",
+    version="1.7.0",
 )
 
 app.add_middleware(
@@ -52,14 +53,31 @@ _HEADCOUNT_CACHE: dict[str, tuple[List[HeadcountRecord], str]] = {}
 _CUSTOM_UPLOADED_DATA: Optional[tuple[List[HeadcountRecord], str]] = None
 
 
+def _append_server_audit_log(username: str, action: str, details: str) -> None:
+    try:
+        log_list = []
+        if TMP_AUDIT_LOG_PATH.exists():
+            log_list = json.loads(TMP_AUDIT_LOG_PATH.read_text(encoding="utf-8"))
+        
+        timestamp = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
+        log_list.insert(0, {
+            "timestamp": timestamp,
+            "username": username,
+            "action": action,
+            "details": details
+        })
+        if len(log_list) > 100:
+            log_list = log_list[:100]
+        TMP_AUDIT_LOG_PATH.write_text(json.dumps(log_list, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def _resolve_metadata_from_records(
     records: List[HeadcountRecord],
     fallback_ref: str = "",
     fallback_filename: str = "",
 ) -> dict[str, str]:
-    """
-    Extrai dinamicamente a data de referência a partir dos registros lidos da planilha ou do Databricks.
-    """
     if records:
         for r in records:
             if r.ano_mes_referencia and r.ano_mes_referencia != "--/----":
@@ -94,7 +112,6 @@ def _load_uploaded_from_tmp() -> Optional[tuple[List[HeadcountRecord], str]]:
 
 def load_users_registry() -> dict[str, dict[str, str]]:
     registry: dict[str, dict[str, str]] = {}
-
     legacy_user = (os.getenv("APP_ADMIN_USER") or "admin.sdh").strip()
     legacy_pass = (os.getenv("APP_ADMIN_PASSWORD") or "SistemaIndustria@2026").strip()
     if legacy_user and legacy_pass:
@@ -175,8 +192,6 @@ def fetch_cached_records(reference_date: str = "", force_refresh: bool = False) 
     global _CUSTOM_UPLOADED_DATA
 
     repo, source_label = get_repository()
-
-    # Se não há conexão direta ao Databricks (ex: Vercel), NUNCA apaga a planilha enviada pelo utilizador!
     if repo is None:
         if _CUSTOM_UPLOADED_DATA is not None:
             return _CUSTOM_UPLOADED_DATA
@@ -186,7 +201,6 @@ def fetch_cached_records(reference_date: str = "", force_refresh: bool = False) 
             return tmp_loaded
         return [], "Aguardando Upload de Planilha (.xlsx/.csv)"
 
-    # Se o utilizador subiu uma planilha e não pediu refresh explícito do Databricks, usa a planilha
     if not force_refresh:
         if _CUSTOM_UPLOADED_DATA is not None:
             return _CUSTOM_UPLOADED_DATA
@@ -228,6 +242,7 @@ async def login(response: Response, username: str = Form(...), password: str = F
             max_age=12 * 3600,
             samesite="lax",
         )
+        _append_server_audit_log(user_record["username"], "LOGIN", "Sessão iniciada com sucesso.")
         return {
             "status": "authenticated",
             "user": user_record["username"],
@@ -237,7 +252,10 @@ async def login(response: Response, username: str = Form(...), password: str = F
 
 
 @app.post("/api/logout")
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
+    user_info = verify_session_token(request.cookies.get(COOKIE_NAME))
+    if user_info:
+        _append_server_audit_log(user_info["username"], "LOGOUT", "Sessão encerrada.")
     response.delete_cookie(COOKIE_NAME)
     return {"status": "logged_out"}
 
@@ -266,12 +284,8 @@ async def upload_headcount_data_endpoint(
     request: Request,
     data_file: UploadFile = File(...),
 ):
-    """
-    Lê a planilha (.xlsx ou .csv) e extrai dinamicamente a data preenchida dentro do arquivo
-    (ex: '2026-05-01T00:00:00.000+00:00', '05/2026', '2026-05-01', etc.), ignorando qualquer data fixa anterior.
-    """
     global _CUSTOM_UPLOADED_DATA
-    require_auth(request, allow_viewer=False)
+    user = require_auth(request, allow_viewer=False)
 
     fname = (data_file.filename or "").lower()
     if not (fname.endswith(".xlsx") or fname.endswith(".xls") or fname.endswith(".csv")):
@@ -285,16 +299,18 @@ async def upload_headcount_data_endpoint(
         repo = ExcelHeadcountRepository(raw_bytes, filename=data_file.filename or "upload.xlsx")
         records = repo.fetch_current_headcount()
 
-        meta = _resolve_metadata_from_records(
-            records,
-            fallback_ref="",
-            fallback_filename=data_file.filename or "",
-        )
+        meta = _resolve_metadata_from_records(records, "", data_file.filename or "")
         source_label = f"Upload Web ({data_file.filename})"
         _CUSTOM_UPLOADED_DATA = (records, source_label)
         if meta["iso_date"]:
             _HEADCOUNT_CACHE[meta["iso_date"]] = (records, source_label)
         _save_uploaded_to_tmp(records, source_label)
+
+        _append_server_audit_log(
+            user["username"],
+            "UPLOAD_BASE",
+            f"Arquivo '{data_file.filename}' carregado com sucesso. Competência: {meta['ano_mes']} ({len(records)} registros)."
+        )
 
         summary = PeopleAnalyticsService.build_organization_summary(records=records)
         return JSONResponse(
@@ -362,7 +378,7 @@ async def update_powerpoint_endpoint(
     custom_overrides_json: str = Form("[]"),
     auto_layout: bool = Form(True),
 ):
-    require_auth(request, allow_viewer=False)
+    user = require_auth(request, allow_viewer=False)
     if not file.filename or not file.filename.lower().endswith(".pptx"):
         raise HTTPException(status_code=400, detail="Envie um arquivo válido com extensão .pptx")
 
@@ -405,6 +421,12 @@ async def update_powerpoint_endpoint(
             auto_layout=auto_layout,
         )
 
+        _append_server_audit_log(
+            user["username"],
+            "GERAR_PPTX",
+            f"Gerado arquivo '{report.output_filename}' ({len(custom_overrides)} ajustes aplicados, Total CNI: {report.total_company_headcount})."
+        )
+
         encoded_pptx = base64.b64encode(updated_pptx_bytes).decode("utf-8")
         return JSONResponse(
             content={
@@ -419,3 +441,39 @@ async def update_powerpoint_endpoint(
     except Exception as exc:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro interno no processamento do PowerPoint: {str(exc)}")
+
+
+@app.get("/api/audit-logs")
+async def get_audit_logs_endpoint(request: Request):
+    require_auth(request, allow_viewer=True)
+    try:
+        log_list = []
+        if TMP_AUDIT_LOG_PATH.exists():
+            log_list = json.loads(TMP_AUDIT_LOG_PATH.read_text(encoding="utf-8"))
+        return JSONResponse(content={"status": "success", "logs": log_list})
+    except Exception as exc:
+        return JSONResponse(content={"status": "success", "logs": []})
+
+
+@app.get("/api/audit-logs/export")
+async def export_audit_logs_txt(request: Request):
+    require_auth(request, allow_viewer=True)
+    try:
+        log_list = []
+        if TMP_AUDIT_LOG_PATH.exists():
+            log_list = json.loads(TMP_AUDIT_LOG_PATH.read_text(encoding="utf-8"))
+        
+        lines = ["===================================================================="]
+        lines.append(" SISTEMA INDÚSTRIA · LOG DE AUDITORIA E EXTRAÇÃO DE SESSÃO")
+        lines.append("====================================================================\n")
+        for item in log_list:
+            lines.append(f"[{item.get('timestamp')}] ({item.get('username')}) {item.get('action')}: {item.get('details')}")
+        
+        txt_content = "\n".join(lines)
+        return PlainTextResponse(
+            content=txt_content,
+            media_type="text/plain;charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=Log_Auditoria_Sistema_Industria.txt"}
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erro ao exportar log: {str(exc)}")
