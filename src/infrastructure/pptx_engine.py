@@ -10,7 +10,7 @@ from pptx.oxml.ns import qn
 class PptxSurgicalEngine:
     """
     Motor cirúrgico de baixo nível para leitura, atualização de Runs, edição manual de gestores,
-    clonagem/remoção de grupos com compactação de coluna e extração de Preview 16:9 fiel ao PPTX.
+    clonagem/remoção de grupos com compactação de coluna e extração de Preview 16:9 limpo no python-pptx.
     """
 
     DEFAULT_VERTICAL_GAP_EMU = 95000
@@ -80,10 +80,6 @@ class PptxSurgicalEngine:
         new_area_name: str,
         new_manager_override: Optional[str] = None,
     ) -> tuple[str, str]:
-        """
-        Substitui o nome da área na primeira Run (<a:r>), preserva a quebra de linha (<a:br>)
-        e mantém o nome do gestor intacto — a menos que 'new_manager_override' seja enviado pela Web.
-        """
         if shape is None or not getattr(shape, "has_text_frame", False):
             return "", new_area_name
 
@@ -159,14 +155,12 @@ class PptxSurgicalEngine:
 
     @classmethod
     def _find_any_unit_group_on_slide(cls, slide: Slide, preferred_id_str: str) -> Optional[GroupShape]:
-        """Localiza o GroupShape solicitado ou o GroupShape de unidade mais próximo no slide."""
         sh = cls.find_shape_by_path(slide, preferred_id_str)
         if isinstance(sh, GroupShape):
             text_children = [c for c in sh.shapes if getattr(c, "has_text_frame", False)]
             if len(text_children) >= 2:
                 return sh
 
-        # Se preferred_id_str tem caminho aninhado (ex: 138.140.141), tenta o grupo intermediário (138.140)
         parts = [p.strip() for p in preferred_id_str.split(".") if p.strip().isdigit()]
         if len(parts) >= 2:
             parent_path = ".".join(parts[:-1])
@@ -174,7 +168,6 @@ class PptxSurgicalEngine:
             if isinstance(parent_sh, GroupShape):
                 return parent_sh
 
-        # Fallback: busca qualquer GroupShape padrão com 2 caixas de texto no slide
         for candidate in slide.shapes:
             if isinstance(candidate, GroupShape):
                 t_ch = [c for c in candidate.shapes if getattr(c, "has_text_frame", False)]
@@ -197,7 +190,6 @@ class PptxSurgicalEngine:
         if template_group is None:
             raise ValueError(f"Grupo base {template_group_id} não encontrado para clonagem.")
 
-        # Se o template original passado tinha coordenada left própria, usa-a para alinhar na coluna certa
         ref_sh = cls.find_shape_by_path(slide, str(template_group_id).split(".")[0])
         col_left = int(getattr(ref_sh, "left", template_group.left))
 
@@ -259,10 +251,6 @@ class PptxSurgicalEngine:
         shape_key: str,
         compact_column: bool = True,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Remove fisicamente uma caixa (mesmo que esteja em grupo aninhado ou par desagrupado)
-        e compacta as caixas inferiores da mesma coluna.
-        """
         first_part = shape_key.split("|")[0].strip()
         parts = [p.strip() for p in first_part.split(".") if p.strip().isdigit()]
         if not parts:
@@ -283,7 +271,6 @@ class PptxSurgicalEngine:
                 except ValueError:
                     old_hc = 0
 
-        # Se for um subgrupo aninhado (ex: 138.140.141), remove o subgrupo pai imediato (138.140)
         if len(parts) >= 3:
             sub_group_path = ".".join(parts[:-1])
             target_node = cls.find_shape_by_path(slide, sub_group_path)
@@ -303,7 +290,6 @@ class PptxSurgicalEngine:
         if parent_xml is not None:
             parent_xml.remove(target_node.element)
 
-        # Se era par desagrupado (ex: "45 | 46"), remove também a shape do badge
         if len(parts) == 1 and "|" in shape_key:
             badge_part = shape_key.split("|")[1].strip().split(".")[0].strip()
             badge_node = cls.find_shape_by_path(slide, badge_part)
@@ -334,13 +320,7 @@ class PptxSurgicalEngine:
 
     @classmethod
     def _collect_slide_geometry(cls, slide: Slide) -> tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]]]:
-        """
-        Percorre recursivamente todos os elementos do slide (incluindo subgrupos em qualquer nível),
-        calculando a posição absoluta real no slide (em EMUs) através da transformação OpenXML
-        (chOff/chExt -> off/ext), e extrai também as linhas conectoras do organograma.
-        """
         geom_map: Dict[str, Dict[str, Any]] = {}
-        connectors: List[Dict[str, Any]] = []
 
         def _get_group_transform(grp_shape: GroupShape) -> tuple[float, float, float, float, float, float, float, float]:
             gx = float(getattr(grp_shape, "left", 0))
@@ -387,22 +367,6 @@ class PptxSurgicalEngine:
                     "is_group": isinstance(sh, GroupShape),
                 }
 
-                tag_name = sh.element.tag.split("}")[-1] if hasattr(sh, "element") else ""
-                is_connector = tag_name == "cxnSp" or (
-                    not getattr(sh, "has_text_frame", False)
-                    and not isinstance(sh, GroupShape)
-                    and ((abs_w < 35000 and abs_h > 80000) or (abs_h < 35000 and abs_w > 80000))
-                )
-                if is_connector:
-                    connectors.append(
-                        {
-                            "left": abs_l,
-                            "top": abs_t,
-                            "width": max(abs_w, 12000.0),
-                            "height": max(abs_h, 12000.0),
-                        }
-                    )
-
                 if isinstance(sh, GroupShape):
                     gx, gy, gw, gh, cx, cy, cw, ch = _get_group_transform(sh)
 
@@ -421,7 +385,7 @@ class PptxSurgicalEngine:
                     _walk(sh.shapes, path, _make_child_transform(transform_fn))
 
         _walk(slide.shapes)
-        return geom_map, connectors
+        return geom_map
 
     @classmethod
     def extract_slides_preview(
@@ -429,12 +393,6 @@ class PptxSurgicalEngine:
         prs: Presentation,
         mapping_config: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
-        """
-        Constrói a representação fiel 16:9 de todos os 11 slides combinando:
-        1. As regras mapeadas no slide_mapping.json (Unidades, Subtotais de Superintendência, Totais e Datas);
-        2. A geometria real calculada recursivamente (incluindo subgrupos aninhados e caixas clonadas);
-        3. Caixas institucionais de cabeçalho (ex: Presidência, Conselho, Iniciativa MEI) e linhas conectoras.
-        """
         slide_w = float(prs.slide_width or 12192000)
         slide_h = float(prs.slide_height or 6858000)
         cfg = mapping_config or {}
@@ -449,7 +407,7 @@ class PptxSurgicalEngine:
             }
 
         for s_idx, slide in enumerate(prs.slides):
-            geom_map, raw_connectors = cls._collect_slide_geometry(slide)
+            geom_map = cls._collect_slide_geometry(slide)
             consumed_paths: set[str] = set()
             elements: List[Dict[str, Any]] = []
 
@@ -474,7 +432,7 @@ class PptxSurgicalEngine:
                 max_b = max(g1["top"] + g1["height"], g2["top"] + g2["height"])
                 return _to_pct(min_l, min_t, max_r - min_l, max_b - min_t)
 
-            # 1. Caixas de Unidades Mapeadas (unit_boxes + extinct_boxes)
+            # 1. Unidades mapeadas (unit_boxes + extinct_boxes)
             all_unit_rules = [
                 {**u, "is_extinct": False} for u in cfg.get("unit_boxes", []) if int(u["slide_index"]) == s_idx
             ] + [
@@ -526,45 +484,7 @@ class PptxSurgicalEngine:
                     }
                 )
 
-            # 2. Caixas de Unidades Dinâmicas / Clonadas (não listadas estaticamente em unit_boxes)
-            for path, g_info in geom_map.items():
-                if not g_info["is_group"] or path in consumed_paths:
-                    continue
-                sh_grp: GroupShape = g_info["shape"]
-                direct_text = [
-                    c for c in sh_grp.shapes if getattr(c, "has_text_frame", False) and c.text_frame.text.strip()
-                ]
-                if len(direct_text) >= 2:
-                    n_sh, b_sh = direct_text[0], direct_text[1]
-                    np_str = f"{path}.{n_sh.shape_id}"
-                    bp_str = f"{path}.{b_sh.shape_id}"
-                    if np_str in consumed_paths or bp_str in consumed_paths:
-                        continue
-                    _mark_consumed(np_str)
-                    _mark_consumed(bp_str)
-                    _mark_consumed(path)
-
-                    area_txt, mgr_txt = cls.split_area_and_manager(n_sh)
-                    badge_txt = b_sh.text_frame.text.strip()
-                    box_pct = _to_pct(g_info["left"], g_info["top"], g_info["width"], g_info["height"])
-
-                    elements.append(
-                        {
-                            "kind": "UNIT_BOX",
-                            "shape_key": f"{np_str} | {bp_str}",
-                            "group_id": str(sh_grp.shape_id),
-                            "segmento": "",
-                            "superintendencia": "Unidade Adicionada / Clonada",
-                            "area_name": area_txt,
-                            "manager": mgr_txt,
-                            "badge": badge_txt,
-                            "is_head": area_txt.lower().startswith("superintend"),
-                            "is_extinct": badge_txt == "0",
-                            **box_pct,
-                        }
-                    )
-
-            # 3. Subtotais de Superintendência (area_subtotal_shapes)
+            # 2. Subtotais de Superintendência (area_subtotal_shapes)
             for a in cfg.get("area_subtotal_shapes", []):
                 if int(a["slide_index"]) != s_idx:
                     continue
@@ -587,7 +507,7 @@ class PptxSurgicalEngine:
                     }
                 )
 
-            # 4. Totais de Diretoria e Total Geral CNI
+            # 3. Totais de Diretoria e Total Geral CNI
             tot_rules = [
                 {**s, "label": f"Total {s.get('segmento', '')}", "is_company": False}
                 for s in cfg.get("segment_total_shapes", [])
@@ -616,7 +536,7 @@ class PptxSurgicalEngine:
                     }
                 )
 
-            # 5. Datas Base
+            # 4. Datas Base
             for d in cfg.get("date_shapes", []):
                 if int(d["slide_index"]) != s_idx:
                     continue
@@ -636,7 +556,7 @@ class PptxSurgicalEngine:
                     }
                 )
 
-            # 6. Demais Caixas com Texto no Slide (Título do Slide, Presidência, Conselho, Iniciativa MEI, etc.)
+            # 5. Títulos e Caixas Institucionais Reais (Filtra linhas e retângulos vazios cinzas)
             for path, g in geom_map.items():
                 if path in consumed_paths or g["is_group"]:
                     continue
@@ -647,9 +567,16 @@ class PptxSurgicalEngine:
                 if not txt:
                     continue
 
+                # Ignora textos corrompidos ou traços isolados
+                if len(txt) <= 1 and not txt.isdigit():
+                    continue
+
                 pct = _to_pct(g["left"], g["top"], g["width"], g["height"])
 
-                # Título superior do slide
+                # Ignora elementos excessivamente estreitos (que eram as linhas cinzas de fundo)
+                if pct["width_pct"] < 2.5 or pct["height_pct"] < 2.0:
+                    continue
+
                 if pct["top_pct"] < 12.0 and pct["left_pct"] < 65.0:
                     elements.append(
                         {
@@ -669,7 +596,6 @@ class PptxSurgicalEngine:
                         }
                     )
                 else:
-                    # Caixas estruturais sem badge (ex: "Presidência (Ricardo Alban)", "Iniciativa MEI")
                     area_part, mgr_part = cls.split_area_and_manager(sh)
                     elements.append(
                         {
@@ -682,16 +608,11 @@ class PptxSurgicalEngine:
                         }
                     )
 
-            # 7. Linhas Conectoras do Organograma
-            connector_pcts = [
-                _to_pct(c["left"], c["top"], c["width"], c["height"]) for c in raw_connectors[:120]
-            ]
-
             slides_data.append(
                 {
                     "slide_number": s_idx + 1,
                     "elements": elements,
-                    "connectors": connector_pcts,
+                    "connectors": [],
                 }
             )
 
