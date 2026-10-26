@@ -45,14 +45,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Cache em memória e armazenamento de base enviada manualmente via Upload Web
 _HEADCOUNT_CACHE: dict[str, tuple[list, str]] = {}
 _CUSTOM_UPLOADED_DATA: Optional[tuple[list, str]] = None
 
 
 def load_users_registry() -> dict[str, dict[str, str]]:
     registry: dict[str, dict[str, str]] = {}
-
     legacy_user = (os.getenv("APP_ADMIN_USER") or "admin.sdh").strip()
     legacy_pass = (os.getenv("APP_ADMIN_PASSWORD") or "SistemaIndustria@2026").strip()
     if legacy_user and legacy_pass:
@@ -116,7 +114,7 @@ def require_auth(request: Request, allow_viewer: bool = True) -> dict[str, str]:
 def get_repository() -> tuple[IHeadcountRepository, str]:
     db_repo = DatabricksHeadcountRepository()
     if db_repo.is_configured():
-        return db_repo, "Databricks Unity Catalog (Live)"
+        return db_repo, "Databricks Unity Catalog"
 
     env_excel = (os.getenv("FALLBACK_EXCEL_PATH") or "").strip()
     excel_path = Path(env_excel) if env_excel else DEFAULT_EXCEL_PATH
@@ -134,7 +132,6 @@ def get_repository() -> tuple[IHeadcountRepository, str]:
 
 def fetch_cached_records(reference_date: str, force_refresh: bool = False) -> tuple[list, str]:
     global _CUSTOM_UPLOADED_DATA
-    # Se o utilizador subiu manualmente uma planilha na sessão e não pediu refresh do Databricks, prioriza o upload!
     if _CUSTOM_UPLOADED_DATA is not None and not force_refresh:
         return _CUSTOM_UPLOADED_DATA
 
@@ -146,7 +143,6 @@ def fetch_cached_records(reference_date: str, force_refresh: bool = False) -> tu
             if force_refresh:
                 _CUSTOM_UPLOADED_DATA = None
         except Exception as err:
-            # Se a conexão ao Databricks falhar (ex: falta de token ou firewall), faz fallback automático para o Excel local
             if DEFAULT_EXCEL_PATH.exists():
                 fallback_repo = ExcelHeadcountRepository(str(DEFAULT_EXCEL_PATH), DEFAULT_EXCEL_PATH.name)
                 records = fallback_repo.fetch_current_headcount(reference_date)
@@ -210,10 +206,6 @@ async def upload_headcount_data_endpoint(
     data_file: UploadFile = File(...),
     reference_date: str = Form("2026-10-01"),
 ):
-    """
-    Permite subir manualmente uma extração (.xlsx ou .csv) do Databricks pela interface Web
-    caso o token PAT ou a conexão direta não estejam disponíveis.
-    """
     global _CUSTOM_UPLOADED_DATA
     require_auth(request, allow_viewer=False)
 
@@ -297,8 +289,6 @@ async def update_powerpoint_endpoint(
         pptx_stream = io.BytesIO(raw_bytes)
         custom_overrides = json.loads(custom_overrides_json) if custom_overrides_json else []
 
-        # Se o navegador enviou também a base de dados (.xlsx/.csv) carregada pelo utilizador,
-        # usa-a diretamente para garantir funcionamento 100% stateless na Vercel!
         if data_file and data_file.filename:
             data_bytes = await data_file.read()
             temp_repo = ExcelHeadcountRepository(data_bytes, filename=data_file.filename)
