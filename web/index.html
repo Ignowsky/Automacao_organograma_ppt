@@ -68,7 +68,6 @@
       background-color: var(--portal-pure) !important;
     }
 
-    /* Botões Padrão CNI Design System */
     .btn {
       display: inline-flex;
       align-items: center;
@@ -125,7 +124,6 @@
       margin-top: 0.5rem;
     }
 
-    /* Barra de Progresso CNI Design System */
     .progress-bar {
       position: relative;
       width: 100%;
@@ -161,7 +159,6 @@
       letter-spacing: 0.03em;
     }
 
-    /* Breadcrumb Funcional CNI Design System */
     .my-stack-micro {
       margin-top: 0.25rem;
       margin-bottom: 0.25rem;
@@ -226,7 +223,6 @@
       color: var(--portal-pure);
     }
 
-    /* Palco 16:9 de Pré-Visualização Interativa do PowerPoint */
     .ppt-slide-stage {
       position: relative;
       width: 100%;
@@ -392,7 +388,7 @@
     </div>
   </div>
 
-  <!-- Faixa Institucional Superior Multi-Marca -->
+  <!-- Faixa Superior Multi-Marca -->
   <div class="h-1.5 w-full flex">
     <div class="w-1/4 bg-[#164194]" title="CNI"></div>
     <div class="w-1/4 bg-[#008542]" title="SESI"></div>
@@ -400,10 +396,10 @@
     <div class="w-1/4 bg-[#0095D9]" title="IEL"></div>
   </div>
 
-  <!-- Cabeçalho Padrão Sistema Indústria -->
+  <!-- Cabeçalho -->
   <header class="bg-cni-dark text-white shadow-lg">
     <div class="max-w-[1480px] mx-auto px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4">
-      <div class="flex items-center gap-4 cursor-pointer" onclick="navigateHome()" title="Voltar ao Início (Visão Completa)">
+      <div class="flex items-center gap-4 cursor-pointer" onclick="navigateHome()" title="Voltar ao Início">
         <div class="bg-white text-cni-pure font-extrabold px-3.5 py-2 rounded shadow-inner flex flex-col items-center leading-none">
           <span class="text-[10px] tracking-widest text-slate-500">SISTEMA</span>
           <span class="text-sm tracking-tight text-cni-dark">INDÚSTRIA</span>
@@ -429,12 +425,10 @@
           <input id="ref-date-input" type="text" value="" placeholder="--/----" onchange="onManualRefDateChange()"
                  class="bg-transparent text-xs font-mono text-white w-24 focus:outline-none text-center" />
         </div>
-        <button type="button" onclick="loadHeadcount(true)" title="Recarregar dados"
-                class="btn secondary btn-small">
+        <button type="button" onclick="loadHeadcount(true)" title="Recarregar dados" class="btn secondary btn-small">
           Sincronizar
         </button>
-        <button id="btn-open-data-modal" type="button" onclick="toggleDataUploadModal(true)"
-                class="btn portal-btn primary btn-small">
+        <button id="btn-open-data-modal" type="button" onclick="toggleDataUploadModal(true)" class="btn portal-btn primary btn-small">
           <span>📤</span> Subir Base (.xlsx/.csv)
         </button>
 
@@ -511,12 +505,8 @@
       </div>
     </div>
 
-    <!-- ================================================================= -->
-    <!-- ABA 1: MAPA ORGANIZACIONAL INTERATIVO                             -->
-    <!-- ================================================================= -->
+    <!-- ABA 1: MAPA ORGANIZACIONAL -->
     <section id="tab-explorer" class="space-y-6">
-
-      <!-- KPIs Macro -->
       <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div onclick="resetFilters()" title="Clique para ver todas as Diretorias e Entidades"
              class="cursor-pointer bg-gradient-to-br from-cni-dark to-cni-pure hover:shadow-lg text-white p-4 rounded-xl shadow-md flex flex-col justify-between transition">
@@ -567,7 +557,6 @@
         </div>
       </div>
 
-      <!-- Barra de Filtros Inteligentes -->
       <div class="bg-white p-5 rounded-xl shadow-sm border border-cni-lighter/80 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
         <div class="md:col-span-4">
           <label class="block text-xs font-bold uppercase text-cni-dark mb-1.5">1. Filtrar Diretoria / Entidade</label>
@@ -596,12 +585,9 @@
       <div id="hierarchy-container" class="space-y-6"></div>
     </section>
 
-    <!-- ================================================================= -->
-    <!-- ABA 2: ESTÚDIO DE AUTOMAÇÃO, PREVIEW 16:9 E EDIÇÃO POWERPOINT     -->
-    <!-- ================================================================= -->
+    <!-- ABA 2: ESTÚDIO DE AUTOMAÇÃO E PREVIEW -->
     <section id="tab-updater" class="hidden space-y-6">
 
-      <!-- Card de Upload + Opção de Auto-Layout -->
       <div class="bg-white rounded-xl shadow-sm border border-cni-lighter overflow-hidden">
         <div class="bg-cni-dark px-6 py-4 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
@@ -645,7 +631,6 @@
             </div>
           </div>
 
-          <!-- Barra de Progresso CNI -->
           <div id="pptx-progress-wrapper" class="hidden pt-4 border-t border-slate-100 space-y-2">
             <div class="flex justify-between items-center text-xs font-bold text-cni-dark">
               <span id="pptx-progress-status">Iniciando processamento do PowerPoint...</span>
@@ -659,10 +644,10 @@
         </form>
       </div>
 
-      <!-- Painel de Resultados + Visualizador 16:9 + Split View -->
+      <!-- Painel de Resultados + Histórico Volátil + Preview 16:9 + Split View -->
       <div id="audit-report-panel" class="hidden space-y-6">
 
-        <!-- KPIs de Validação + Botão Download -->
+        <!-- KPIs + Histórico de Sessão Volátil + Botão Download -->
         <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-cni-pure space-y-4">
           <div class="flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-6 w-full md:w-auto">
@@ -689,16 +674,30 @@
             </button>
           </div>
 
+          <!-- NOVO: Histórico Volátil de Sessão da Sessão Atual (Salvo em SessionStorage) -->
+          <div class="border-t border-slate-100 pt-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-cni-dark">📜 Histórico Volátil de Alterações da Sessão:</span>
+              <span id="session-log-counter" class="text-[10px] font-bold bg-cni-lightest text-cni-pure px-2 py-0.5 rounded-full">0 ações</span>
+            </div>
+            <button type="button" onclick="clearSessionLog()" class="text-xs text-rose-600 hover:underline font-semibold">
+              Limpar histórico da sessão
+            </button>
+          </div>
+          <div id="session-log-container" class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 max-h-28 overflow-y-auto text-xs text-slate-600 space-y-1">
+            Nenhuma modificação registrada nesta sessão.
+          </div>
+
           <div id="layout-notes-box" class="hidden bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-900 space-y-1"></div>
         </div>
 
-        <!-- PRÉ-VISUALIZAÇÃO INTERATIVA 16:9 DOS SLIDES DO POWERPOINT -->
+        <!-- PRÉ-VISUALIZAÇÃO INTERATIVA 16:9 LIMPA -->
         <div class="bg-white rounded-xl shadow-sm border border-cni-lighter overflow-hidden">
           <div class="bg-cni-dark text-white px-5 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div class="flex items-center gap-3">
               <span class="bg-white/15 text-xs font-extrabold px-2.5 py-1 rounded">🖥️ Preview Interativo 16:9</span>
               <div>
-                <h3 class="text-sm font-bold">Mapa Visual do Slide Atualizado (Clique em qualquer caixa para Editar, Clonar ou Excluir)</h3>
+                <h3 class="text-sm font-bold">Mapa Visual Limpo do Slide Atualizado (Clique em qualquer caixa para Editar, Clonar ou Excluir)</h3>
               </div>
             </div>
             <div class="flex items-center gap-2">
@@ -722,16 +721,13 @@
           </div>
 
           <div class="p-5 bg-slate-100/70">
-            <div id="slide-preview-canvas" class="ppt-slide-stage">
-              <!-- Elementos renderizados dinamicamente a partir de report.slides_preview -->
-            </div>
+            <div id="slide-preview-canvas" class="ppt-slide-stage"></div>
           </div>
         </div>
 
-        <!-- SPLIT VIEW: INVENTÁRIO (7/12) | ESTÚDIO DE EDIÇÃO DIREITA (5/12) -->
+        <!-- SPLIT VIEW: INVENTÁRIO (7/12) | ESTÚDIO DE EDIÇÃO (5/12) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-          <!-- COLUNA ESQUERDA: Inventário Auditável -->
           <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-cni-lighter overflow-hidden">
             <div class="px-5 py-4 bg-cni-lightest/50 border-b border-cni-lighter space-y-3">
               <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -784,7 +780,7 @@
             <div id="audit-cards-container" class="divide-y divide-slate-100 max-h-[680px] overflow-y-auto p-4 space-y-2.5"></div>
           </div>
 
-          <!-- COLUNA DIREITA: Estúdio Estrutural (UPDATE / ADD / REMOVE) -->
+          <!-- COLUNA DIREITA: Estúdio Estrutural -->
           <div id="live-editor-card" class="lg:col-span-5 bg-white rounded-xl shadow-md border-2 border-cni-lighter overflow-hidden sticky top-16 transition">
             <div class="bg-cni-dark text-white px-5 py-3.5 flex justify-between items-center">
               <div>
@@ -797,8 +793,6 @@
             </div>
 
             <div class="p-5 space-y-4">
-
-              <!-- SELETOR DE MODO DE OPERAÇÃO -->
               <div class="grid grid-cols-3 gap-1.5 bg-cni-lightest p-1 rounded-xl border border-cni-lighter">
                 <button id="mode-btn-UPDATE" type="button" onclick="setEditorActionMode('UPDATE')"
                         class="py-2 px-2 rounded-lg text-xs font-extrabold bg-cni-pure text-white shadow-xs transition">
@@ -814,7 +808,6 @@
                 </button>
               </div>
 
-              <!-- PASSO 1: Seletor Guiado -->
               <div class="bg-cni-lightest/50 border border-cni-lighter rounded-xl p-3.5 space-y-2.5">
                 <div class="flex justify-between items-center">
                   <span id="editor-step1-title" class="text-[11px] font-extrabold uppercase text-cni-dark">
@@ -876,7 +869,6 @@
                 </div>
               </div>
 
-              <!-- PASSO 2: Campos de Dados -->
               <div id="editor-fields-wrapper" class="space-y-3">
                 <div>
                   <label id="lbl-edit-area-name" class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Nome da Área / Unidade no Slide</label>
@@ -910,7 +902,6 @@
                 </div>
               </div>
 
-              <!-- PASSO 3: Preview Visual + Cascata -->
               <div id="live-box-preview-container" class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
                 <div class="flex justify-between items-center">
                   <span id="preview-header-label" class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
@@ -1023,6 +1014,58 @@
       }
     }
 
+    // =====================================================================
+    // HISTÓRICO VOLÁTIL DE SESSÃO (SESSIONSTORAGE)
+    // =====================================================================
+    function getSessionLog() {
+      try {
+        const raw = sessionStorage.getItem('si_pa_session_log');
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function pushSessionLog(actionType, description) {
+      try {
+        const log = getSessionLog();
+        const timeStr = new Date().toLocaleTimeString('pt-BR');
+        log.unshift({ time: timeStr, type: actionType, desc: description });
+        if (log.length > 30) log.pop();
+        sessionStorage.setItem('si_pa_session_log', JSON.stringify(log));
+        renderSessionLog();
+      } catch (e) {}
+    }
+
+    function clearSessionLog() {
+      try {
+        sessionStorage.removeItem('si_pa_session_log');
+        renderSessionLog();
+      } catch (e) {}
+    }
+
+    function renderSessionLog() {
+      const container = document.getElementById('session-log-container');
+      const counter = document.getElementById('session-log-counter');
+      if (!container || !counter) return;
+
+      const log = getSessionLog();
+      counter.textContent = `${log.length} ${log.length === 1 ? 'ação' : 'ações'}`;
+
+      if (log.length === 0) {
+        container.innerHTML = 'Nenhuma modificação registrada nesta sessão.';
+        return;
+      }
+
+      container.innerHTML = log.map(item => `
+        <div class="flex items-center gap-2 border-b border-slate-100 pb-1">
+          <span class="font-mono text-[10px] text-slate-400">[${item.time}]</span>
+          <span class="font-bold text-cni-pure">${item.type}:</span>
+          <span class="text-slate-700 truncate">${escapeHtml(item.desc)}</span>
+        </div>
+      `).join('');
+    }
+
     function progress_bar(min, max, selector, animate) {
       const container = document.querySelector(selector);
       if (!container) return;
@@ -1101,19 +1144,10 @@
       if (!slideObj || !slideObj.elements || slideObj.elements.length === 0) {
         stage.innerHTML = `
           <div class="w-full h-full flex items-center justify-center text-xs text-slate-400 font-semibold">
-            Processe um arquivo .PPTX acima para visualizar o mapa interativo 16:9 deste slide.
+            Processe um arquivo .PPTX acima para visualizar o mapa interativo 16:9 limpo deste slide.
           </div>
         `;
         return;
-      }
-
-      // Renderiza as linhas conectoras do organograma (fundo)
-      if (slideObj.connectors) {
-        slideObj.connectors.forEach(c => {
-          const div = document.createElement('div');
-          div.style = `position:absolute; left:${c.left_pct}%; top:${c.top_pct}%; width:${c.width_pct}%; height:${c.height_pct}%; background:#94A3B8; opacity:0.35; z-index:1; pointer-events:none;`;
-          stage.appendChild(div);
-        });
       }
 
       const activeShapeKey = (document.getElementById('edit-shape-id')?.value || '').trim();
@@ -1558,6 +1592,7 @@
       document.getElementById('filter-search').value = '';
 
       applyHeadcountResponse(json, true);
+      pushSessionLog('UPLOAD', `Planilha carregada: ${selectedFile.name}`);
       document.getElementById('active-data-source-pill').textContent =
         `Base Ativa: ${selectedFile.name} · Ref ${json.reference_date} (${json.total_headcount} contratos)`;
     }
@@ -1733,11 +1768,6 @@
         step1Title.textContent = '1. Selecionar Coluna / Caixa Base para CLONAR abaixo';
         lblArea.textContent = 'Nome da NOVA Gerência / Unidade a Criar';
         queueBtn.textContent = '➕ Guardar Nova Caixa na Fila';
-        if (document.getElementById('edit-shape-id').value) {
-          document.getElementById('edit-area-name').value = '';
-          document.getElementById('edit-manager-name').value = '';
-          document.getElementById('edit-headcount').value = '1';
-        }
       } else {
         fieldsWrapper.classList.remove('hidden');
         step1Title.textContent = '1. Selecionar Elemento para EDITAR';
@@ -1898,7 +1928,7 @@
         deltaBadge.textContent = `Exclusão (-${remHc} contratos)`;
 
         cascadeNote.classList.remove('hidden');
-        cascadeNote.innerHTML = `🗑️ <b>Remoção + Alinhamento Automático:</b> A caixa será excluída do slide, as gerências abaixo subirão na coluna e <b>-${remHc}</b> contratos serão subtraídos do Subtotal da Superintendência, da Diretoria e do Total Geral CNI.`;
+        cascadeNote.innerHTML = `🗑️ <b>Remoção + Alinhamento:</b> A caixa será excluída do slide, as gerências abaixo subirão e <b>-${remHc}</b> contratos serão subtraídos em cascata.`;
         return;
       }
 
@@ -1913,7 +1943,7 @@
         deltaBadge.className = 'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white';
         deltaBadge.textContent = `Nova Caixa (+${addHc} contratos)`;
         cascadeNote.classList.remove('hidden');
-        cascadeNote.innerHTML = `➕ <b>Clonagem na Coluna (+${addHc}):</b> Uma nova caixa com o padrão visual da CNI será inserida abaixo da coluna selecionada e somará <b>+${addHc}</b> ao Subtotal da Superintendência, Diretoria e Total Geral.`;
+        cascadeNote.innerHTML = `➕ <b>Clonagem na Coluna (+${addHc}):</b> Uma nova caixa será inserida abaixo e somará <b>+${addHc}</b> em cascata.`;
         return;
       }
 
@@ -1923,21 +1953,14 @@
         const diffSign = diff > 0 ? `+${diff}` : `${diff}`;
 
         deltaBadge.classList.remove('hidden');
-        if (diff > 0) {
+        if (diff !== 0) {
           deltaBadge.className = 'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white';
           deltaBadge.textContent = `Anterior: ${currentEditingBaselineHc} ➔ Novo: ${newHc} (${diffSign})`;
-        } else if (diff < 0) {
-          deltaBadge.className = 'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-600 text-white';
-          deltaBadge.textContent = `Anterior: ${currentEditingBaselineHc} ➔ Novo: ${newHc} (${diffSign})`;
+          cascadeNote.classList.remove('hidden');
+          cascadeNote.innerHTML = `⚡ <b>Impacto em Cascata (${diffSign}):</b> Subtotal da Superintendência, Diretoria e CNI serão ajustados em <b>${diffSign}</b>.`;
         } else {
           deltaBadge.className = 'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700';
           deltaBadge.textContent = `Mantido: ${newHc} (Δ 0)`;
-        }
-
-        if (diff !== 0) {
-          cascadeNote.classList.remove('hidden');
-          cascadeNote.innerHTML = `⚡ <b>Impacto em Cascata Automático (${diffSign}):</b> Ao aplicar, o <b>Subtotal da Superintendência</b>, o <b>Total da Diretoria</b> e o <b>Total Geral CNI</b> serão ajustados em <b>${diffSign}</b> contratos nos slides.`;
-        } else {
           cascadeNote.classList.add('hidden');
         }
       } else {
@@ -2231,7 +2254,7 @@
         mgrName = `(${mgrName})`;
       }
 
-      return {
+      const ov = {
         action: currentEditorMode,
         slide_index: parseInt(slideIdx, 10),
         shape_id: shapeId,
@@ -2241,6 +2264,14 @@
         baseline_hc: currentEditingBaselineHc,
         hierarchy_label: currentEditingMeta.hierarchyLabel || ''
       };
+
+      // Registra no histórico volátil de sessão
+      const actDesc = currentEditorMode === 'ADD' ? `Adicionada nova caixa "${areaName || shapeId}" no Slide ${slideIdx}`
+                    : currentEditorMode === 'REMOVE' ? `Removida caixa (${shapeId}) do Slide ${slideIdx}`
+                    : `Editada caixa "${areaName || shapeId}" no Slide ${slideIdx} [HC: ${hc}]`;
+      pushSessionLog(currentEditorMode, actDesc);
+
+      return ov;
     }
 
     function addManualOverride(silent = false) {
@@ -2384,6 +2415,8 @@
         document.getElementById('rep-total-cni').textContent = rep.total_company_headcount;
         document.getElementById('rep-updated').textContent = rep.updated_count;
         document.getElementById('rep-conflicts').textContent = rep.conflict_count;
+
+        pushSessionLog('GERAÇÃO PPTX', `Gerado arquivo "${json.download_filename}" (${rep.total_company_headcount} contratos CNI)`);
 
         const notesBox = document.getElementById('layout-notes-box');
         if (rep.validation_notes && rep.validation_notes.length > 0) {
@@ -2570,6 +2603,7 @@
 
     async function checkAuthAndInit() {
       renderBreadcrumb();
+      renderSessionLog();
       try {
         const res = await fetch('/api/session');
         const data = await safeParseJson(res);
