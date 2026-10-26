@@ -47,7 +47,7 @@
       --portal-lightest: #E4ECF5;
     }
 
-    /* Remove o cursor de digitação "|" (caret) de todos os elementos onde não se deve digitar */
+    /* Bloqueia o cursor de digitação "|" (caret) em elementos não editáveis */
     *, *::before, *::after {
       caret-color: transparent !important;
     }
@@ -137,7 +137,7 @@
     .progress-bar {
       position: relative;
       width: 100%;
-      height: 1.35rem;
+      height: 1.4rem;
       background-color: var(--portal-lightest);
       border: 1px solid var(--portal-lighter);
       overflow: hidden;
@@ -146,14 +146,14 @@
       border-radius: 9999px;
     }
     .progress-bar-shadow {
-      box-shadow: inset 0 1px 3px rgba(8, 21, 41, 0.12);
+      box-shadow: inset 0 1px 3px rgba(8, 21, 41, 0.15);
     }
     .progress-bar .progress {
       display: block;
       height: 100%;
       width: 0%;
       border-radius: 9999px;
-      transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .progress-bar .progress-counter {
       position: absolute;
@@ -161,15 +161,16 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       font-weight: 800;
-      color: var(--portal-darkest);
+      color: #FFFFFF;
       z-index: 10;
-      text-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
+      text-shadow: 0 1px 3px rgba(8, 21, 41, 0.85);
+      letter-spacing: 0.03em;
     }
 
     /* ===================================================================== */
-    /* PADRÃO DE BREADCRUMB (.breadcrumb .cni-breadcrumb)                    */
+    /* PADRÃO DE BREADCRUMB FUNCIONAL (.breadcrumb .cni-breadcrumb)          */
     /* ===================================================================== */
     .my-stack-micro {
       margin-top: 0.25rem;
@@ -185,41 +186,54 @@
       align-items: center;
       gap: 0.45rem;
       list-style: none;
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       color: var(--portal-medium);
     }
     .cni-breadcrumb li {
       display: inline-flex;
       align-items: center;
+      gap: 0.25rem;
     }
     .cni-breadcrumb a {
       color: var(--portal-pure);
       font-weight: 600;
       text-decoration: none;
-      transition: color 0.15s ease;
+      padding: 0.2rem 0.45rem;
+      border-radius: 0.375rem;
+      transition: all 0.15s ease;
+      cursor: pointer;
     }
     .cni-breadcrumb a:hover {
+      background-color: var(--portal-lightest);
       color: var(--portal-dark);
-      text-decoration: underline;
+    }
+    .cni-breadcrumb .breadcrumb-active {
+      color: var(--portal-darkest);
+      font-weight: 700;
+      background-color: #FFFFFF;
+      border: 1px solid var(--portal-lighter);
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      box-shadow: 0 1px 2px rgba(8, 21, 41, 0.05);
     }
     .house-icon::before {
       content: "🏠";
       font-style: normal;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
     }
     .arrow-c-right-icon::before {
       content: "›";
       font-style: normal;
       font-weight: 700;
-      font-size: 1rem;
+      font-size: 1.05rem;
       color: var(--portal-light);
     }
     .nav-circle-icon::before {
       content: "•••";
       font-style: normal;
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       letter-spacing: 1px;
-      color: var(--portal-medium);
+      color: var(--portal-pure);
     }
   </style>
 </head>
@@ -321,7 +335,7 @@
   <!-- Cabeçalho Padrão Sistema Indústria -->
   <header class="bg-cni-dark text-white shadow-lg">
     <div class="max-w-[1480px] mx-auto px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4">
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-4 cursor-pointer" onclick="navigateHome()" title="Voltar ao Início (Visão Completa)">
         <div class="bg-white text-cni-pure font-extrabold px-3.5 py-2 rounded shadow-inner flex flex-col items-center leading-none">
           <span class="text-[10px] tracking-widest text-slate-500">SISTEMA</span>
           <span class="text-sm tracking-tight text-cni-dark">INDÚSTRIA</span>
@@ -396,19 +410,44 @@
   <main class="max-w-[1480px] mx-auto px-6 py-5 flex-1 w-full space-y-4">
 
     <!-- ================================================================= -->
-    <!-- BREADCRUMB PADRÃO CNI DESIGN SYSTEM                               -->
+    <!-- BREADCRUMB DINÂMICO E FUNCIONAL (COM MENU DE NAVEGAÇÃO RÁPIDA)    -->
     <!-- ================================================================= -->
-    <nav aria-label="breadcrumb">
-      <ol class="my-stack-micro breadcrumb cni-breadcrumb px-inline-xxxs">
-        <li><a href="#" onclick="switchTab('explorer'); return false;"><i class="house-icon"></i></a></li>
-        <li><i class="arrow-c-right-icon"></i></li>
-        <li><a href="#" class="breadcrumb-dots" onclick="return false;"><i class="nav-circle-icon"></i></a></li>
-        <li><i class="arrow-c-right-icon"></i></li>
-        <li><a href="#" onclick="switchTab('explorer'); return false;">People Analytics</a></li>
-        <li><i class="arrow-c-right-icon"></i></li>
-        <li><a href="#" id="breadcrumb-current-label" onclick="return false;">Mapa Organizacional Interativo</a></li>
-      </ol>
-    </nav>
+    <div class="relative flex items-center justify-between bg-white/80 backdrop-blur-xs px-4 py-2 rounded-xl border border-cni-lighter/80 shadow-2xs">
+      <nav aria-label="breadcrumb">
+        <ol id="dynamic-breadcrumb" class="my-stack-micro breadcrumb cni-breadcrumb px-inline-xxxs">
+          <!-- Renderizado dinamicamente via renderBreadcrumb() -->
+        </ol>
+      </nav>
+
+      <!-- Menu Popover acionado pelo botão "..." (breadcrumb-dots) -->
+      <div id="breadcrumb-dots-menu" class="hidden absolute left-10 top-11 z-30 bg-white rounded-xl shadow-xl border border-cni-lighter py-2 w-64 text-xs">
+        <div class="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+          Atalhos do Portal
+        </div>
+        <button type="button" onclick="navigateHome(); toggleBreadcrumbMenu(false);"
+                class="w-full text-left px-3.5 py-2 hover:bg-cni-lightest text-cni-dark font-semibold flex items-center gap-2">
+          <span>🏛️</span> Visão Completa (Resetar Filtros)
+        </button>
+        <button type="button" onclick="switchTab('updater'); toggleBreadcrumbMenu(false);"
+                class="w-full text-left px-3.5 py-2 hover:bg-cni-lightest text-cni-dark font-semibold flex items-center gap-2">
+          <span>⚡</span> Ir para Estúdio PowerPoint (.PPTX)
+        </button>
+        <button type="button" onclick="toggleDataUploadModal(true); toggleBreadcrumbMenu(false);"
+                class="w-full text-left px-3.5 py-2 hover:bg-cni-lightest text-cni-dark font-semibold flex items-center gap-2">
+          <span>📤</span> Subir Planilha (.xlsx / .csv)
+        </button>
+        <button type="button" onclick="exportFilteredToCSV(); toggleBreadcrumbMenu(false);"
+                class="w-full text-left px-3.5 py-2 hover:bg-cni-lightest text-cni-dark font-semibold flex items-center gap-2">
+          <span>📥</span> Exportar Visão Atual (.CSV)
+        </button>
+      </div>
+
+      <div id="breadcrumb-QuickReset" class="hidden">
+        <button type="button" onclick="navigateHome()" class="text-xs font-bold text-cni-pure hover:underline flex items-center gap-1">
+          <span>↺</span> Voltar à Visão Completa
+        </button>
+      </div>
+    </div>
 
     <!-- ================================================================= -->
     <!-- ABA 1: MAPA ORGANIZACIONAL INTERATIVO (ESTILO ORGANOGRAMA)        -->
@@ -417,7 +456,8 @@
 
       <!-- KPIs Macro com Percentual de Participação -->
       <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div onclick="resetFilters()" class="cursor-pointer bg-gradient-to-br from-cni-dark to-cni-pure text-white p-4 rounded-xl shadow-md flex flex-col justify-between">
+        <div onclick="resetFilters()" title="Clique para ver todas as Diretorias e Entidades"
+             class="cursor-pointer bg-gradient-to-br from-cni-dark to-cni-pure hover:shadow-lg text-white p-4 rounded-xl shadow-md flex flex-col justify-between transition">
           <div class="flex justify-between items-center">
             <span class="text-[11px] uppercase tracking-wider text-cni-lighter font-bold">Quadro Total Ativo</span>
             <span class="text-[10px] bg-white/15 px-2 py-0.5 rounded">100%</span>
@@ -428,40 +468,44 @@
           </div>
         </div>
 
-        <div onclick="quickFilterEntity('CNI')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-cni-pure transition">
+        <div onclick="quickFilterEntity('CNI')" title="Clique para filtrar as Diretorias da CNI"
+             class="cursor-pointer bg-white hover:shadow-md hover:border-cni-pure p-4 rounded-xl shadow-sm border-t-4 border-cni-pure transition">
           <div class="flex justify-between items-center">
             <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Diretorias CNI</span>
             <span id="pct-cni" class="text-[11px] font-bold text-cni-pure bg-cni-lightest px-2 py-0.5 rounded">--%</span>
           </div>
           <span id="kpi-cni" class="text-2xl font-extrabold text-cni-pure mt-2 block">--</span>
-          <span class="text-[11px] text-slate-400">7 Diretorias + Compliance</span>
+          <span class="text-[11px] text-slate-400">Clique para explorar ➔</span>
         </div>
 
-        <div onclick="quickFilterEntity('SENAI')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-senai-orange transition">
+        <div onclick="quickFilterEntity('SENAI')" title="Clique para filtrar o SENAI-DN"
+             class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-senai-orange transition">
           <div class="flex justify-between items-center">
             <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">SENAI-DN</span>
             <span id="pct-senai" class="text-[11px] font-bold text-senai-orange bg-orange-50 px-2 py-0.5 rounded">--%</span>
           </div>
           <span id="kpi-senai" class="text-2xl font-extrabold text-senai mt-2 block">--</span>
-          <span class="text-[11px] text-slate-400">Educação, Inovação & Gestão</span>
+          <span class="text-[11px] text-slate-400">Clique para explorar ➔</span>
         </div>
 
-        <div onclick="quickFilterEntity('SESI')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-sesi transition">
+        <div onclick="quickFilterEntity('SESI')" title="Clique para filtrar o SESI-DN"
+             class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-sesi transition">
           <div class="flex justify-between items-center">
             <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">SESI-DN</span>
             <span id="pct-sesi" class="text-[11px] font-bold text-sesi bg-emerald-50 px-2 py-0.5 rounded">--%</span>
           </div>
           <span id="kpi-sesi" class="text-2xl font-extrabold text-sesi mt-2 block">--</span>
-          <span class="text-[11px] text-slate-400">Saúde, Cultura & Educação</span>
+          <span class="text-[11px] text-slate-400">Clique para explorar ➔</span>
         </div>
 
-        <div onclick="quickFilterEntity('IEL')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-iel transition">
+        <div onclick="quickFilterEntity('IEL')" title="Clique para filtrar o IEL / NC"
+             class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-iel transition">
           <div class="flex justify-between items-center">
             <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">IEL / NC</span>
             <span id="pct-iel" class="text-[11px] font-bold text-iel bg-sky-50 px-2 py-0.5 rounded">--%</span>
           </div>
           <span id="kpi-iel" class="text-2xl font-extrabold text-iel mt-2 block">--</span>
-          <span class="text-[11px] text-slate-400">Carreiras & Gestão Inovação</span>
+          <span class="text-[11px] text-slate-400">Clique para explorar ➔</span>
         </div>
       </div>
 
@@ -526,7 +570,7 @@
                   Usando dados sincronizados no Portal
                 </span>
               </div>
-              <input id="pptx-file" type="file" accept=".pptx" required
+              <input id="pptx-file" type="file" accept=".pptx" required onchange="onPptxFileSelected()"
                      class="w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cni-pure file:text-white hover:file:bg-cni-dark cursor-pointer focus:outline-none" />
             </div>
             <div class="space-y-3">
@@ -536,7 +580,7 @@
                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-cni-dark" />
               </div>
 
-              <!-- Botões Padrão Design System CNI -->
+              <!-- Botão Primário CNI Design System -->
               <div class="container flex flex-col gap-2">
                 <button id="btn-submit-pptx" type="submit" class="btn portal-btn primary icon-left w-full py-2.5">
                   Processar e Gerar .PPTX Atualizado
@@ -545,15 +589,16 @@
             </div>
           </div>
 
-          <!-- Barra de Progresso Padrão CNI Design System -->
-          <div class="pt-2 border-t border-slate-100">
+          <!-- Barra de Progresso CNI: OCULTA POR PADRÃO, SÓ CARREGA APÓS SELECIONAR O PPTX E ENVIAR -->
+          <div id="pptx-progress-wrapper" class="hidden pt-4 border-t border-slate-100 space-y-2">
+            <div class="flex justify-between items-center text-xs font-bold text-cni-dark">
+              <span id="pptx-progress-status">Iniciando processamento do PowerPoint...</span>
+              <span id="pptx-progress-stage" class="text-[11px] font-semibold text-cni-medium">Aguarde</span>
+            </div>
             <div class="progress-bar progress-pill progress-bar-shadow" id="progressbar21">
               <div class="progress-counter">0%</div>
               <span class="progress bg-portal-pure" style="width: 0%;"></span>
             </div>
-            <button type="button" class="trigger-progress btn secondary btn-small mt-stack-xxs" onclick="progress_bar(0, 100, '#progressbar21', true)">
-              cni bar
-            </button>
           </div>
         </form>
       </div>
@@ -606,7 +651,7 @@
                 </p>
               </div>
               <div class="flex flex-wrap gap-2">
-                <select id="audit-slide-filter" onchange="renderAuditTable()" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-cni-dark">
+                <select id="audit-slide-filter" onchange="onAuditSlideFilterChange()" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-cni-dark">
                   <option value="TODOS">Todos os Slides (1 a 11)</option>
                   <option value="1">Slide 1 · Macroestrutura CNI</option>
                   <option value="2">Slide 2 · Governança Interna e Externa</option>
@@ -635,7 +680,7 @@
           </div>
 
           <!-- COLUNA DIREITA: Estúdio Interativo de Edição Web -->
-          <div class="lg:col-span-4 bg-white rounded-xl shadow-md border-2 border-cni-lighter overflow-hidden sticky top-16">
+          <div id="live-editor-card" class="lg:col-span-4 bg-white rounded-xl shadow-md border-2 border-cni-lighter overflow-hidden sticky top-16 transition">
             <div class="bg-cni-dark text-white px-5 py-3.5 flex justify-between items-center">
               <div>
                 <span class="text-[10px] uppercase tracking-widest text-cni-lighter font-bold block">Edição em Tempo Real</span>
@@ -654,12 +699,12 @@
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Slide (1 a 11)</label>
-                  <input id="edit-slide-idx" type="number" min="1" max="11" placeholder="Ex: 5"
+                  <input id="edit-slide-idx" type="number" min="1" max="11" placeholder="Ex: 5" oninput="renderBreadcrumb()"
                          class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-cni-dark" />
                 </div>
                 <div>
                   <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Shape ID (Nome | Badge)</label>
-                  <input id="edit-shape-id" type="text" placeholder="Ex: 29.30 | 29.31"
+                  <input id="edit-shape-id" type="text" placeholder="Ex: 29.30 | 29.31" oninput="renderBreadcrumb()"
                          class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono" />
                 </div>
               </div>
@@ -729,9 +774,12 @@
     let lastFilteredHierarchy = {};
     let currentUserRole = 'ADMIN';
     let currentUploadedDataFile = null;
+    let currentActiveTab = 'explorer';
     let progressTimer = null;
 
-    // Função oficial da barra de progresso CNI Design System
+    // =====================================================================
+    // 1. CONTROLE DA BARRA DE PROGRESSO CNI (SÓ CARREGA AO PROCESSAR PPTX)
+    // =====================================================================
     function progress_bar(min, max, selector, animate) {
       const container = document.querySelector(selector);
       if (!container) return;
@@ -766,6 +814,229 @@
       }, 45);
     }
 
+    function onPptxFileSelected() {
+      // Quando o utilizador escolhe um novo arquivo .pptx, esconde e zera a barra até que ele clique em Processar
+      const wrapper = document.getElementById('pptx-progress-wrapper');
+      if (wrapper) wrapper.classList.add('hidden');
+      progress_bar(0, 0, '#progressbar21', false);
+    }
+
+    // =====================================================================
+    // 2. NAVEGAÇÃO ESTRUTURAL & BREADCRUMB DINÂMICO (DRILL-DOWN REAL)
+    // =====================================================================
+    function toggleBreadcrumbMenu(forceState) {
+      const menu = document.getElementById('breadcrumb-dots-menu');
+      if (!menu) return;
+      const show = typeof forceState === 'boolean' ? forceState : menu.classList.contains('hidden');
+      menu.classList.toggle('hidden', !show);
+    }
+
+    // Fecha o menu "..." se clicar fora
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('breadcrumb-dots-menu');
+      if (!menu || menu.classList.contains('hidden')) return;
+      if (!e.target.closest('#breadcrumb-dots-menu') && !e.target.closest('.breadcrumb-dots')) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    function navigateHome() {
+      switchTab('explorer');
+      resetFilters();
+    }
+
+    function drillDownSegment(segName) {
+      switchTab('explorer');
+      const segSelect = document.getElementById('filter-segmento');
+      if (segSelect) {
+        segSelect.value = segName;
+      }
+      document.getElementById('filter-area').value = 'TODAS';
+      document.getElementById('filter-search').value = '';
+      loadHeadcount(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function drillDownArea(segName, areaName) {
+      switchTab('explorer');
+      const segSelect = document.getElementById('filter-segmento');
+      const areaSelect = document.getElementById('filter-area');
+      if (segSelect && segName) {
+        segSelect.value = segName;
+      }
+      // Atualiza lista de áreas primeiro e seleciona a área clicada
+      loadHeadcount(false).then(() => {
+        if (areaSelect) {
+          areaSelect.value = areaName;
+          loadHeadcount(false);
+        }
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function clearAreaFilter() {
+      document.getElementById('filter-area').value = 'TODAS';
+      loadHeadcount(false);
+    }
+
+    function clearSearchFilter() {
+      document.getElementById('filter-search').value = '';
+      loadHeadcount(false);
+    }
+
+    function openSlideInUpdater(slideNumber) {
+      if (currentUserRole === 'VIEWER') {
+        alert('O seu perfil (VIEWER) possui permissão exclusiva para visualização de Headcount.');
+        return;
+      }
+      switchTab('updater');
+      const slideSelect = document.getElementById('audit-slide-filter');
+      if (slideSelect && slideNumber) {
+        slideSelect.value = String(slideNumber);
+        renderAuditTable();
+      }
+      document.getElementById('edit-slide-idx').value = slideNumber || 1;
+      renderBreadcrumb();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function onAuditSlideFilterChange() {
+      renderAuditTable();
+      renderBreadcrumb();
+    }
+
+    function clearSlideFilter() {
+      const slideSelect = document.getElementById('audit-slide-filter');
+      if (slideSelect) {
+        slideSelect.value = 'TODOS';
+        renderAuditTable();
+      }
+      renderBreadcrumb();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderBreadcrumb() {
+      const bc = document.getElementById('dynamic-breadcrumb');
+      const quickReset = document.getElementById('breadcrumb-QuickReset');
+      if (!bc) return;
+
+      const seg = document.getElementById('filter-segmento')?.value || 'TODOS';
+      const area = document.getElementById('filter-area')?.value || 'TODAS';
+      const search = (document.getElementById('filter-search')?.value || '').trim();
+      const slideFilter = document.getElementById('audit-slide-filter')?.value || 'TODOS';
+      const editSlide = (document.getElementById('edit-slide-idx')?.value || '').trim();
+      const editShape = (document.getElementById('edit-shape-id')?.value || '').trim();
+
+      const hasDeepFilter = (currentActiveTab === 'explorer' && (seg !== 'TODOS' || area !== 'TODAS' || search !== '')) ||
+                            (currentActiveTab === 'updater' && (slideFilter !== 'TODOS' || editShape !== ''));
+      if (quickReset) {
+        quickReset.classList.toggle('hidden', !hasDeepFilter);
+      }
+
+      let html = `
+        <li>
+          <a href="#" onclick="navigateHome(); return false;" title="Início · Visão Completa do Sistema Indústria">
+            <i class="house-icon"></i>
+          </a>
+        </li>
+        <li><i class="arrow-c-right-icon"></i></li>
+        <li>
+          <a href="#" class="breadcrumb-dots" onclick="toggleBreadcrumbMenu(); return false;" title="Abrir Menu Rápido de Navegação">
+            <i class="nav-circle-icon"></i>
+          </a>
+        </li>
+        <li><i class="arrow-c-right-icon"></i></li>
+      `;
+
+      if (currentActiveTab === 'explorer') {
+        const isRootExplorer = (seg === 'TODOS' && area === 'TODAS' && !search);
+        html += `
+          <li>
+            <a href="#" onclick="resetFilters(); return false;" class="${isRootExplorer ? 'breadcrumb-active' : ''}">
+              🏛️ Mapa Organizacional
+            </a>
+          </li>
+        `;
+
+        if (seg !== 'TODOS') {
+          const isSegActive = (area === 'TODAS' && !search);
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <a href="#" onclick="clearAreaFilter(); return false;" class="${isSegActive ? 'breadcrumb-active' : ''}" title="Clique para ver todas as Superintendências de ${escapeHtml(seg)}">
+                ${escapeHtml(seg)}
+              </a>
+            </li>
+          `;
+        }
+
+        if (area !== 'TODAS') {
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <span class="breadcrumb-active flex items-center gap-1.5">
+                <span>${escapeHtml(area)}</span>
+                <button type="button" onclick="clearAreaFilter()" class="text-rose-500 hover:text-rose-700 font-bold ml-1" title="Remover filtro de Superintendência">✕</button>
+              </span>
+            </li>
+          `;
+        }
+
+        if (search) {
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <span class="breadcrumb-active flex items-center gap-1.5">
+                <span>Busca: "${escapeHtml(search)}"</span>
+                <button type="button" onclick="clearSearchFilter()" class="text-rose-500 hover:text-rose-700 font-bold ml-1" title="Limpar pesquisa">✕</button>
+              </span>
+            </li>
+          `;
+        }
+      } else {
+        const isRootUpdater = (slideFilter === 'TODOS' && !editShape);
+        html += `
+          <li>
+            <a href="#" onclick="clearSlideFilter(); return false;" class="${isRootUpdater ? 'breadcrumb-active' : ''}">
+              ⚡ Estúdio de Automação PPTX
+            </a>
+          </li>
+        `;
+
+        if (slideFilter !== 'TODOS') {
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <span class="breadcrumb-active flex items-center gap-1.5">
+                <span>Slide ${escapeHtml(slideFilter)}</span>
+                <button type="button" onclick="clearSlideFilter()" class="text-rose-500 hover:text-rose-700 font-bold ml-1" title="Voltar para Todos os Slides">✕</button>
+              </span>
+            </li>
+          `;
+        }
+
+        if (editSlide && editShape) {
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <span class="breadcrumb-active">
+                ✏️ Editando Slide ${escapeHtml(editSlide)} · Shape ${escapeHtml(editShape)}
+              </span>
+            </li>
+          `;
+        }
+      }
+
+      bc.innerHTML = html;
+    }
+
     // Parser seguro contra erros 500/504 em texto puro da Vercel
     async function safeParseJson(res) {
       const rawText = await res.text();
@@ -792,7 +1063,6 @@
       document.getElementById('data-upload-modal').classList.toggle('hidden', !show);
     }
 
-    // Aplica o payload de headcount na tela (usado tanto pelo GET /api/headcount quanto pelo POST /api/upload-headcount-data)
     function applyHeadcountResponse(json, isFullUnfiltered = false) {
       document.getElementById('datasource-badge').textContent = json.source;
       document.getElementById('active-data-source-pill').textContent = `Fonte Ativa: ${json.source}`;
@@ -839,9 +1109,9 @@
       }
 
       renderHierarchyCards(data.hierarchy || {});
+      renderBreadcrumb();
     }
 
-    // Filtro local instantâneo sobre fullHierarchyCache quando uma planilha foi enviada na Vercel
     function filterHierarchyClientSide(segFilter, areaFilter, searchTerm) {
       if (!fullHierarchyCache) return null;
       const filteredHierarchy = {};
@@ -927,7 +1197,6 @@
         document.getElementById('filter-area').value = 'TODAS';
         document.getElementById('filter-search').value = '';
 
-        // Atualiza diretamente a partir da resposta do upload (sem depender de segunda chamada na Vercel!)
         applyHeadcountResponse(json, true);
         document.getElementById('active-data-source-pill').textContent = `Base Ativa: ${selectedFile.name} (${json.total_headcount} contratos)`;
         toggleDataUploadModal(false);
@@ -944,6 +1213,7 @@
         alert('O seu perfil (VIEWER) possui permissão exclusiva para visualização de Headcount.');
         return;
       }
+      currentActiveTab = tab;
       document.getElementById('tab-explorer').classList.toggle('hidden', tab !== 'explorer');
       document.getElementById('tab-updater').classList.toggle('hidden', tab !== 'updater');
       document.getElementById('tab-btn-explorer').className = tab === 'explorer'
@@ -953,12 +1223,7 @@
         ? 'py-3.5 border-b-2 border-cni-pure text-cni-pure font-bold text-sm flex items-center gap-2 transition'
         : 'py-3.5 border-b-2 border-transparent text-slate-500 hover:text-cni-pure font-semibold text-sm flex items-center gap-2 transition';
 
-      const bcLabel = document.getElementById('breadcrumb-current-label');
-      if (bcLabel) {
-        bcLabel.textContent = tab === 'explorer'
-          ? 'Mapa Organizacional Interativo'
-          : 'Estúdio de Automação & Edição PowerPoint';
-      }
+      renderBreadcrumb();
     }
 
     function onSegmentoChange() {
@@ -974,6 +1239,7 @@
     }
 
     function quickFilterEntity(entity) {
+      switchTab('explorer');
       const segSelect = document.getElementById('filter-segmento');
       if (entity === 'CNI') {
         segSelect.value = 'TODOS';
@@ -997,7 +1263,6 @@
         fullHierarchyCache = null;
       }
 
-      // Se já temos os dados carregados (ex: via Upload Web) e estamos apenas filtrando, filtra em memória instantaneamente!
       if (!forceRefresh && fullHierarchyCache && Object.keys(fullHierarchyCache).length > 0) {
         const localData = filterHierarchyClientSide(seg, area, search);
         if (localData) {
@@ -1057,13 +1322,31 @@
     }
 
     function jumpToSlideEditor(slideNumber, shapeKey, unitName, managerName, hc) {
-      if (currentUserRole === 'VIEWER') return;
+      if (currentUserRole === 'VIEWER') {
+        alert('O seu perfil (VIEWER) possui permissão exclusiva para visualização de Headcount.');
+        return;
+      }
       switchTab('updater');
-      document.getElementById('edit-slide-idx').value = slideNumber || '';
-      document.getElementById('edit-shape-id').value = shapeKey || '';
+      document.getElementById('edit-slide-idx').value = slideNumber || 1;
+      document.getElementById('edit-shape-id').value = shapeKey || 'Auto';
       document.getElementById('edit-area-name').value = unitName || '';
       document.getElementById('edit-manager-name').value = managerName || '';
       document.getElementById('edit-headcount').value = hc !== undefined ? hc : '';
+
+      const slideSelect = document.getElementById('audit-slide-filter');
+      if (slideSelect && slideNumber) {
+        slideSelect.value = String(slideNumber);
+        renderAuditTable();
+      }
+
+      renderBreadcrumb();
+
+      const editorCard = document.getElementById('live-editor-card');
+      if (editorCard) {
+        editorCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        editorCard.classList.add('ring-4', 'ring-cni-pure/40');
+        setTimeout(() => editorCard.classList.remove('ring-4', 'ring-cni-pure/40'), 1400);
+      }
       document.getElementById('edit-area-name').focus();
     }
 
@@ -1075,10 +1358,13 @@
       if (entries.length === 0) {
         container.innerHTML = `
           <div class="bg-white rounded-2xl border border-cni-lighter p-8 text-center space-y-3">
-            <div class="text-base font-bold text-cni-dark">Nenhum registro exibido no momento</div>
+            <div class="text-base font-bold text-cni-dark">Nenhum registro exibido para o filtro atual</div>
             <p class="text-xs text-slate-500 max-w-md mx-auto">
-              Caso esteja na Vercel ou sem conexão direta ao Databricks, clique no botão <b>"📤 Subir Base (.xlsx/.csv)"</b> no topo direito para carregar a planilha extraída.
+              Clique em <b>"Resetar"</b> para voltar à visão completa ou em <b>"📤 Subir Base (.xlsx/.csv)"</b> no topo direito para carregar uma nova extração.
             </p>
+            <div>
+              <button type="button" onclick="resetFilters()" class="btn secondary btn-small">↺ Limpar Filtros</button>
+            </div>
           </div>
         `;
         return;
@@ -1087,22 +1373,24 @@
       entries.forEach(([segName, segObj]) => {
         const card = document.createElement('div');
         card.className = 'bg-white rounded-2xl shadow-sm border border-cni-lighter/90 overflow-hidden';
+        const safeSeg = (segName || '').replace(/'/g, "\\'");
 
         let areasHtml = '';
         Object.entries(segObj.areas).forEach(([areaName, areaObj]) => {
+          const safeArea = (areaName || '').replace(/'/g, "\\'");
           const headUnits = areaObj.unidades.filter(u => u.role && u.role !== 'GERENCIA_UNIDADE');
           const childUnits = areaObj.unidades.filter(u => !u.role || u.role === 'GERENCIA_UNIDADE');
 
           const headHtml = headUnits.map(u => `
-            <div onclick="jumpToSlideEditor(${u.slide_number || 1}, '${u.shape_key || ''}', '${(u.unidade_des || '').replace(/'/g, "\\'")}', '${(u.manager || '').replace(/'/g, "\\'")}', ${u.headcount})"
-                 title="Clique para editar esta caixa no PowerPoint (Slide ${u.slide_number || 1})"
+            <div onclick="jumpToSlideEditor(${u.slide_number || segObj.slide_number || 1}, '${(u.shape_key || '').replace(/'/g, "\\'")}', '${(u.unidade_des || '').replace(/'/g, "\\'")}', '${(u.manager || '').replace(/'/g, "\\'")}', ${u.headcount})"
+                 title="Clique para editar esta caixa no Estúdio PowerPoint (Slide ${u.slide_number || segObj.slide_number || 1})"
                  class="cursor-pointer bg-gradient-to-r from-cni-dark to-cni-pure hover:from-cni-pure hover:to-cni-medium text-white rounded-xl p-3 shadow-xs flex justify-between items-center mb-2.5 transition group">
               <div class="pr-2">
                 <div class="flex items-center gap-1.5">
                   <span class="text-[9px] uppercase tracking-wider bg-white/15 text-cni-lightest px-1.5 py-0.5 rounded font-bold">
                     ${u.role === 'DIRETORIA_CABECA' ? 'Gabinete Diretoria' : 'Titular Superintendência'}
                   </span>
-                  <span class="text-[10px] text-white/70 opacity-0 group-hover:opacity-100 transition">✏️ Editar</span>
+                  <span class="text-[10px] text-white/90 bg-white/15 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition">✏️ Editar no Slide ${u.slide_number || segObj.slide_number || 1}</span>
                 </div>
                 <div class="text-xs font-bold leading-snug mt-1">${u.unidade_des}</div>
                 ${u.manager ? `<div class="text-[11px] text-cni-lighter font-medium mt-0.5">${u.manager}</div>` : ''}
@@ -1119,8 +1407,8 @@
             const barWidth = Math.max(6, Math.round((u.headcount / (areaObj.subtotal || 1)) * 100));
             return `
               <div class="relative pl-4 before:content-[''] before:absolute before:left-1.5 before:top-0 before:bottom-0 before:w-0.5 before:bg-cni-pure/20">
-                <div onclick="jumpToSlideEditor(${u.slide_number || 1}, '${u.shape_key || ''}', '${(u.unidade_des || '').replace(/'/g, "\\'")}', '${(u.manager || '').replace(/'/g, "\\'")}', ${u.headcount})"
-                     title="Clique para editar no PowerPoint (Slide ${u.slide_number || 1})"
+                <div onclick="jumpToSlideEditor(${u.slide_number || segObj.slide_number || 1}, '${(u.shape_key || '').replace(/'/g, "\\'")}', '${(u.unidade_des || '').replace(/'/g, "\\'")}', '${(u.manager || '').replace(/'/g, "\\'")}', ${u.headcount})"
+                     title="Clique para editar no Estúdio PowerPoint (Slide ${u.slide_number || segObj.slide_number || 1})"
                      class="cursor-pointer group relative before:content-[''] before:absolute before:-left-2.5 before:top-1/2 before:w-2.5 before:h-0.5 before:bg-cni-pure/20 bg-white border border-slate-200/90 hover:border-cni-pure rounded-xl p-2.5 shadow-2xs transition">
                   <div class="flex justify-between items-start gap-2">
                     <div class="pr-1">
@@ -1128,6 +1416,9 @@
                         ${u.unidade_des}
                       </div>
                       ${u.manager ? `<span class="inline-block text-[11px] text-slate-500 italic mt-0.5">${u.manager}</span>` : ''}
+                      <span class="block text-[10px] font-bold text-cni-pure opacity-0 group-hover:opacity-100 transition mt-0.5">
+                        ✏️ Editar no Slide ${u.slide_number || segObj.slide_number || 1} ➔
+                      </span>
                     </div>
                     <span class="font-extrabold text-xs text-cni-pure bg-cni-lightest border border-cni-lighter px-2.5 py-1 rounded-lg min-w-[32px] text-center">
                       ${u.headcount}
@@ -1148,10 +1439,15 @@
           areasHtml += `
             <div class="border border-cni-lighter/80 rounded-2xl p-4 bg-[#F8FAFC] flex flex-col justify-between hover:shadow-xs transition">
               <div>
-                <div class="flex justify-between items-start gap-2 border-b border-slate-200 pb-2.5 mb-3">
+                <div onclick="drillDownArea('${safeSeg}', '${safeArea}')"
+                     title="Clique para focar apenas nesta Superintendência (${areaName})"
+                     class="cursor-pointer flex justify-between items-start gap-2 border-b border-slate-200 pb-2.5 mb-3 group">
                   <div>
-                    ${badgeType}
-                    <h4 class="font-extrabold text-xs text-cni-dark uppercase mt-1 leading-snug">${areaName}</h4>
+                    <div class="flex items-center gap-1.5">
+                      ${badgeType}
+                      <span class="text-[10px] text-cni-pure font-semibold opacity-0 group-hover:opacity-100 transition">🔍 Filtrar área</span>
+                    </div>
+                    <h4 class="font-extrabold text-xs text-cni-dark group-hover:text-cni-pure uppercase mt-1 leading-snug transition">${areaName}</h4>
                   </div>
                   <div class="text-right">
                     <span class="text-[10px] text-slate-400 uppercase font-bold block">Subtotal</span>
@@ -1168,16 +1464,21 @@
         card.innerHTML = `
           <div class="${getEntityHeaderStyle(segName)} text-white px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div class="flex items-center gap-3">
-              <span class="bg-white/15 text-white font-mono text-xs font-bold px-2.5 py-1 rounded-lg border border-white/20">
-                Slide ${segObj.slide_number || 1}
-              </span>
-              <div>
-                <span class="text-[10px] uppercase tracking-widest text-white/75 font-semibold block">Diretoria / Entidade</span>
-                <h3 class="font-extrabold text-base md:text-lg tracking-tight">${segName}</h3>
+              <button type="button" onclick="openSlideInUpdater(${segObj.slide_number || 1})"
+                      title="Abrir Slide ${segObj.slide_number || 1} no Estúdio PowerPoint"
+                      class="bg-white/15 hover:bg-white/30 text-white font-mono text-xs font-bold px-2.5 py-1 rounded-lg border border-white/20 transition cursor-pointer">
+                ⚡ Slide ${segObj.slide_number || 1}
+              </button>
+              <div onclick="drillDownSegment('${safeSeg}')" class="cursor-pointer group" title="Clique para focar apenas em ${segName}">
+                <span class="text-[10px] uppercase tracking-widest text-white/75 font-semibold block">Diretoria / Entidade (Clique para focar 🔍)</span>
+                <h3 class="font-extrabold text-base md:text-lg tracking-tight group-hover:underline">${segName}</h3>
               </div>
             </div>
-            <div class="flex items-center gap-4 self-end sm:self-center">
-              <span class="text-xs text-white/85 font-medium">${Object.keys(segObj.areas).length} blocos organizacionais</span>
+            <div class="flex items-center gap-3 self-end sm:self-center">
+              <button type="button" onclick="drillDownSegment('${safeSeg}')"
+                      class="text-xs bg-white/10 hover:bg-white/20 text-white font-semibold px-3 py-1 rounded-lg border border-white/15 transition">
+                🔍 Isolar Diretoria (${Object.keys(segObj.areas).length} áreas)
+              </button>
               <span class="bg-white text-cni-dark text-sm font-extrabold px-4 py-1.5 rounded-full shadow-sm">
                 Total: ${segObj.total}
               </span>
@@ -1241,6 +1542,8 @@
       document.getElementById('edit-area-name').value = parsed.areaName;
       document.getElementById('edit-manager-name').value = parsed.mgrName;
       document.getElementById('edit-headcount').value = parsed.hc !== null ? parsed.hc : '';
+
+      renderBreadcrumb();
     }
 
     function addManualOverride() {
@@ -1265,11 +1568,13 @@
       });
 
       renderOverridesList();
+      renderBreadcrumb();
     }
 
     function clearManualOverrides() {
       manualOverrides = [];
       renderOverridesList();
+      renderBreadcrumb();
     }
 
     function removeOverride(idx) {
@@ -1306,9 +1611,12 @@
       const refDate = document.getElementById('ref-date-input').value;
       const autoLayout = document.getElementById('chk-auto-layout').checked;
       const btn = document.getElementById('btn-submit-pptx');
+      const progressWrapper = document.getElementById('pptx-progress-wrapper');
+      const progressStatus = document.getElementById('pptx-progress-status');
+      const progressStage = document.getElementById('pptx-progress-stage');
 
       if (!fileInput.files.length) {
-        alert('Selecione o arquivo .pptx base primeiro.');
+        alert('Selecione o arquivo .pptx base primeiro para iniciar o carregamento.');
         return;
       }
 
@@ -1322,12 +1630,24 @@
       formData.append('custom_overrides_json', JSON.stringify(manualOverrides));
       formData.append('auto_layout', autoLayout);
 
+      // Mostra e inicia a barra de progresso SOMENTE agora que o PPTX foi anexado e enviado
+      progressWrapper.classList.remove('hidden');
+      progressStatus.textContent = `Processando "${fileInput.files[0].name}"...`;
+      progressStage.textContent = '1/3 · Lendo XML e mapeando Shapes';
+      progress_bar(0, 45, '#progressbar21', true);
+
       btn.disabled = true;
       btn.textContent = 'Processando XML, Recalculando Totais e Alinhando Slides...';
-      progress_bar(0, 75, '#progressbar21', true);
+
+      const stageTimeout = setTimeout(() => {
+        progressStage.textContent = '2/3 · Recalculando Headcount e alinhando colunas';
+        progress_bar(45, 85, '#progressbar21', true);
+      }, 600);
 
       try {
         const res = await fetch('/api/update-pptx', { method: 'POST', body: formData });
+        clearTimeout(stageTimeout);
+
         if (res.status === 401) {
           document.getElementById('login-overlay').classList.remove('hidden');
           return;
@@ -1335,7 +1655,9 @@
         const json = await safeParseJson(res);
         if (!res.ok) throw new Error(json.detail || 'Erro ao processar PowerPoint.');
 
-        progress_bar(75, 100, '#progressbar21', true);
+        progressStage.textContent = '3/3 · Concluído com sucesso!';
+        progressStatus.textContent = `Apresentação "${json.download_filename}" pronta para download.`;
+        progress_bar(85, 100, '#progressbar21', true);
 
         const rep = json.report;
         currentAuditChanges = rep.changes;
@@ -1375,6 +1697,8 @@
         document.getElementById('audit-report-panel').classList.remove('hidden');
         renderAuditTable();
       } catch (err) {
+        clearTimeout(stageTimeout);
+        progressWrapper.classList.add('hidden');
         progress_bar(0, 0, '#progressbar21', false);
         alert(err.message);
       } finally {
@@ -1469,6 +1793,7 @@
     }
 
     async function checkAuthAndInit() {
+      renderBreadcrumb();
       try {
         const res = await fetch('/api/session');
         const data = await safeParseJson(res);
