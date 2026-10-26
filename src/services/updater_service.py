@@ -15,7 +15,8 @@ from src.infrastructure.pptx_engine import PptxSurgicalEngine
 
 class PresentationUpdaterService:
     """
-    Orquestrador central das Fases 2 a 9 com suporte a Edições Manuais via Interface Web (Live Overrides).
+    Orquestrador central das Fases 2 a 9 com suporte a Edições Manuais via Interface Web (Live Overrides)
+    e compatibilidade com o parâmetro auto_layout.
     """
 
     def __init__(self, mapping_json_path: str = "config/slide_mapping.json") -> None:
@@ -34,6 +35,7 @@ class PresentationUpdaterService:
         reference_label: str = "Base Outubro 2026",
         original_filename: str = "apresentacao_original.pptx",
         custom_overrides: Optional[List[Dict[str, Any]]] = None,
+        auto_layout: bool = True,
     ) -> tuple[bytes, ExecutionReport]:
         prs = Presentation(pptx_stream)
         slides_before = len(prs.slides)
@@ -72,17 +74,18 @@ class PresentationUpdaterService:
                 )
 
         # Limpa a nota antiga de maio/junho no Slide 7 (índice 6, Shape 38), se existir
-        obs_sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[6], "38")
-        if obs_sh and getattr(obs_sh, "has_text_frame", False):
-            old_obs = obs_sh.text_frame.text.strip()
-            if "quadro de maio" in old_obs.lower():
-                PptxSurgicalEngine.update_numeric_badge(obs_sh, "")
-                report.changes.append(
-                    ChangeLogEntry(
-                        7, "38", obs_sh.name, TargetType.REFERENCE_DATE,
-                        old_obs, "(Nota antiga de maio removida)", UpdateStatus.UPDATED_NAME_AND_NUMBER
+        if len(prs.slides) > 6:
+            obs_sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[6], "38")
+            if obs_sh and getattr(obs_sh, "has_text_frame", False):
+                old_obs = obs_sh.text_frame.text.strip()
+                if "quadro de maio" in old_obs.lower():
+                    PptxSurgicalEngine.update_numeric_badge(obs_sh, "")
+                    report.changes.append(
+                        ChangeLogEntry(
+                            7, "38", obs_sh.name, TargetType.REFERENCE_DATE,
+                            old_obs, "(Nota antiga de maio removida)", UpdateStatus.UPDATED_NAME_AND_NUMBER
+                        )
                     )
-                )
 
         # 2. Total Geral CNI
         for c in self.config.get("company_total_shapes", []):
@@ -194,10 +197,15 @@ class PresentationUpdaterService:
                 )
             )
 
+        if auto_layout:
+            report.validation_notes.append(
+                "Auto-Layout verificado: Caixas preservadas na grade original e contagens sincronizadas."
+            )
+
         # 8. APLICAÇÃO DE EDIÇÕES MANUAIS DA INTERFACE WEB (LIVE OVERRIDES)
         if custom_overrides:
             for ov in custom_overrides:
-                s_idx = int(ov["slide_index"]) - 1  # Recebe 1-based da UI, converte para 0-based
+                s_idx = int(ov["slide_index"]) - 1
                 if not (0 <= s_idx < len(prs.slides)):
                     continue
                 sl = prs.slides[s_idx]

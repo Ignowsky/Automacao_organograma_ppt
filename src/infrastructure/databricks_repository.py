@@ -1,10 +1,14 @@
 import os
 import io
+import sys
+import logging
 from typing import List
 import pandas as pd
-from databricks import sql
 from src.domain.models import HeadcountRecord
 from src.domain.interfaces import IHeadcountRepository
+
+# Silencia o warning [WARN] pyarrow is not installed by default since databricks-sql-connector 4.0.0
+logging.getLogger("databricks.sql").setLevel(logging.ERROR)
 
 
 class DatabricksHeadcountRepository(IHeadcountRepository):
@@ -13,7 +17,7 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
     Suporta:
     1. Token PAT (DATABRICKS_TOKEN)
     2. OAuth M2M para Vercel (DATABRICKS_CLIENT_ID + DATABRICKS_CLIENT_SECRET)
-    3. OAuth U2M SSO via Navegador sem Token (DATABRICKS_USE_SSO=true no VS Code local)
+    3. OAuth U2M SSO via Navegador sem Token (DATABRICKS_USE_SSO=true APENAS em máquina local com tela)
     """
 
     def __init__(self) -> None:
@@ -27,21 +31,36 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
             os.getenv("DATABRICKS_CATALOG_TABLE") or "datalake__biz.sdh.dh_gestaorh__extenso"
         ).strip()
 
+    @staticmethod
+    def _is_headless_serverless() -> bool:
+        """
+        Detecta se o código está rodando na Vercel / AWS Lambda ou Linux sem interface gráfica.
+        Evita que o auth_type='databricks-oauth' trave o servidor por 300 segundos esperando navegador.
+        """
+        if os.getenv("VERCEL") or os.getenv("VERCEL_ENV") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+            return True
+        if sys.platform.startswith("linux") and not os.getenv("DISPLAY") and not os.getenv("WAYLAND_DISPLAY"):
+            return True
+        return False
+
     def is_configured(self) -> bool:
         if not (self.server_hostname and self.http_path):
             return False
-        return bool(
-            self.access_token
-            or (self.client_id and self.client_secret)
-            or self.use_sso
-        )
+        if self.access_token or (self.client_id and self.client_secret):
+            return True
+        if self.use_sso and not self._is_headless_serverless():
+            return True
+        return False
 
     def _build_connection(self):
+        from databricks import sql
+
         if self.access_token:
             return sql.connect(
                 server_hostname=self.server_hostname,
                 http_path=self.http_path,
                 access_token=self.access_token,
+                _socket_timeout=20,
             )
 
         if self.client_id and self.client_secret:
@@ -59,22 +78,27 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
                 server_hostname=self.server_hostname,
                 http_path=self.http_path,
                 credentials_provider=credential_provider,
+                _socket_timeout=20,
             )
 
         if self.use_sso:
+            if self._is_headless_serverless():
+                raise EnvironmentError(
+                    "SSO via navegador (U2M) não é suportado em ambiente Serverless (Vercel). "
+                    "Utilize o upload de planilha (.xlsx/.csv)."
+                )
             return sql.connect(
                 server_hostname=self.server_hostname,
                 http_path=self.http_path,
                 auth_type="databricks-oauth",
             )
 
-        raise EnvironmentError("Nenhum método de autenticação Databricks configurado no .env.")
+        raise EnvironmentError("Nenhum método de autenticação Databricks compatível configurado.")
 
     def fetch_current_headcount(self, reference_date: str = "2026-10-01") -> List[HeadcountRecord]:
         if not self.is_configured():
             raise EnvironmentError(
-                "Configuração do Databricks incompleta no .env. "
-                "Informe DATABRICKS_SERVER_HOSTNAME e DATABRICKS_HTTP_PATH."
+                "Databricks não configurado para este ambiente. Usando base Excel/CSV."
             )
 
         query = f"""
@@ -111,32 +135,36 @@ class DatabricksHeadcountRepository(IHeadcountRepository):
 
 class ExcelHeadcountRepository(IHeadcountRepository):
     """
-    Repositório para leitura direta de extração Excel (.xlsx) ou CSV (.csv)
+    Repositório resiliente para leitura direta de extração Excel (.xlsx) ou CSV (.csv)
     tanto a partir de caminho em disco quanto via upload em memória (Bytes).
     """
 
     def __init__(self, file_source: str | bytes, filename: str = "dados.xlsx") -> None:
         self.file_source = file_source
-        self.filename = filename.lower()
+        self.filename = filename.lower().strip()
 
     def fetch_current_headcount(self, reference_date: str = "2026-10-01") -> List[HeadcountRecord]:
         if isinstance(self.file_source, bytes):
             stream = io.BytesIO(self.file_source)
             if self.filename.endswith(".csv"):
                 try:
-                    df = pd.read_csv(stream, sep=None, engine="python")
+                    df = pd.read_csv(stream, sep=None, engine="python", encoding="utf-8-sig")
                 except Exception:
                     stream.seek(0)
-                    df = pd.read_csv(stream)
+                    df = pd.read_csv(stream, sep=";", encoding="latin1")
             else:
-                xls = pd.ExcelFile(stream)
-                df = pd.read_excel(stream, sheet_name=xls.sheet_names[0])
+                stream.seek(0)
+                df = pd.read_excel(stream, sheet_name=0, engine="openpyxl")
         else:
             if str(self.file_source).lower().endswith(".csv"):
-                df = pd.read_csv(self.file_source, sep=None, engine="python")
+                try:
+                    df = pd.read_csv(self.file_source, sep=None, engine="python", encoding="utf-8-sig")
+                except Exception:
+                    df = pd.read_csv(self.file_source, sep=";", encoding="latin1")
             else:
-                xls = pd.ExcelFile(self.file_source)
-                df = pd.read_excel(self.file_source, sheet_name=xls.sheet_names[0])
+                df = pd.read_excel(self.file_source, sheet_name=0, engine="openpyxl")
+
+        df = df.dropna(how="all")
 
         if len(df.columns) < 4:
             raise ValueError(
@@ -153,12 +181,15 @@ class ExcelHeadcountRepository(IHeadcountRepository):
         for _, row in df.iterrows():
             if pd.isna(row[col_seg]) or pd.isna(row[col_unit]):
                 continue
+            raw_count = pd.to_numeric(row[col_count], errors="coerce")
+            if pd.isna(raw_count):
+                continue
             records.append(
                 HeadcountRecord(
                     segmento_des=str(row[col_seg]).strip(),
-                    area_des=str(row[col_area]).strip(),
+                    area_des=str(row[col_area]).strip() if not pd.isna(row[col_area]) else "",
                     unidade_des=str(row[col_unit]).strip(),
-                    headcount=int(float(row[col_count])),
+                    headcount=int(round(float(raw_count))),
                     ano_mes_referencia=reference_date,
                 )
             )

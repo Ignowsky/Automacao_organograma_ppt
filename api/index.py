@@ -5,15 +5,17 @@ import hmac
 import time
 import base64
 import hashlib
+import tempfile
 import traceback
 from pathlib import Path
 from dataclasses import asdict
-from typing import Optional
+from typing import Optional, List
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
+from src.domain.models import HeadcountRecord
 from src.domain.interfaces import IHeadcountRepository
 from src.infrastructure.databricks_repository import (
     DatabricksHeadcountRepository,
@@ -29,13 +31,14 @@ load_dotenv(dotenv_path=ENV_FILE_PATH, override=True)
 DEFAULT_EXCEL_PATH = PROJECT_ROOT / "data" / "input" / "New_Query_2026_09_10_14_47_53 (1).xlsx"
 MAPPING_JSON_PATH = PROJECT_ROOT / "config" / "slide_mapping.json"
 WEB_INDEX_PATH = PROJECT_ROOT / "web" / "index.html"
+TMP_UPLOAD_CACHE_PATH = Path(tempfile.gettempdir()) / "si_pa_uploaded_records.json"
 
 COOKIE_NAME = "si_pa_session"
 APP_SECRET = (os.getenv("APP_SECRET_KEY") or "cni-secret-key-2026").strip()
 
 app = FastAPI(
     title="Sistema Indústria | People Analytics - Estrutura Organizacional",
-    version="1.3.0",
+    version="1.4.0",
 )
 
 app.add_middleware(
@@ -45,12 +48,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_HEADCOUNT_CACHE: dict[str, tuple[list, str]] = {}
-_CUSTOM_UPLOADED_DATA: Optional[tuple[list, str]] = None
+# Cache em memória e armazenamento de base enviada manualmente via Upload Web
+_HEADCOUNT_CACHE: dict[str, tuple[List[HeadcountRecord], str]] = {}
+_CUSTOM_UPLOADED_DATA: Optional[tuple[List[HeadcountRecord], str]] = None
+
+
+def _save_uploaded_to_tmp(records: List[HeadcountRecord], source_label: str) -> None:
+    try:
+        payload = {
+            "source_label": source_label,
+            "records": [asdict(r) for r in records],
+        }
+        TMP_UPLOAD_CACHE_PATH.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _load_uploaded_from_tmp() -> Optional[tuple[List[HeadcountRecord], str]]:
+    try:
+        if TMP_UPLOAD_CACHE_PATH.exists():
+            raw = json.loads(TMP_UPLOAD_CACHE_PATH.read_text(encoding="utf-8"))
+            recs = [HeadcountRecord(**item) for item in raw.get("records", [])]
+            if recs:
+                return recs, raw.get("source_label", "Upload Web (Cache)")
+    except Exception:
+        pass
+    return None
 
 
 def load_users_registry() -> dict[str, dict[str, str]]:
     registry: dict[str, dict[str, str]] = {}
+
     legacy_user = (os.getenv("APP_ADMIN_USER") or "admin.sdh").strip()
     legacy_pass = (os.getenv("APP_ADMIN_PASSWORD") or "SistemaIndustria@2026").strip()
     if legacy_user and legacy_pass:
@@ -111,46 +139,51 @@ def require_auth(request: Request, allow_viewer: bool = True) -> dict[str, str]:
     return user_info
 
 
-def get_repository() -> tuple[IHeadcountRepository, str]:
+def get_repository() -> tuple[Optional[IHeadcountRepository], str]:
     db_repo = DatabricksHeadcountRepository()
     if db_repo.is_configured():
-        return db_repo, "Databricks Unity Catalog"
+        return db_repo, "Databricks Unity Catalog (Live)"
 
     env_excel = (os.getenv("FALLBACK_EXCEL_PATH") or "").strip()
     excel_path = Path(env_excel) if env_excel else DEFAULT_EXCEL_PATH
     if not excel_path.is_absolute():
         excel_path = PROJECT_ROOT / excel_path
 
-    if not excel_path.exists():
-        raise FileNotFoundError(
-            f"Arquivo padrão não localizado em '{excel_path}'. "
-            f"Utilize o botão 'Subir Base (.xlsx/.csv)' no topo da página."
-        )
+    if excel_path.exists():
+        return ExcelHeadcountRepository(str(excel_path), excel_path.name), f"Base Padrão ({excel_path.name})"
 
-    return ExcelHeadcountRepository(str(excel_path), excel_path.name), f"Base Padrão ({excel_path.name})"
+    return None, "Aguardando Upload de Planilha (.xlsx/.csv)"
 
 
-def fetch_cached_records(reference_date: str, force_refresh: bool = False) -> tuple[list, str]:
+def fetch_cached_records(reference_date: str, force_refresh: bool = False) -> tuple[List[HeadcountRecord], str]:
     global _CUSTOM_UPLOADED_DATA
-    if _CUSTOM_UPLOADED_DATA is not None and not force_refresh:
-        return _CUSTOM_UPLOADED_DATA
+
+    if not force_refresh:
+        if _CUSTOM_UPLOADED_DATA is not None:
+            return _CUSTOM_UPLOADED_DATA
+        tmp_loaded = _load_uploaded_from_tmp()
+        if tmp_loaded is not None:
+            _CUSTOM_UPLOADED_DATA = tmp_loaded
+            return tmp_loaded
 
     if force_refresh or reference_date not in _HEADCOUNT_CACHE:
         try:
             repo, source_label = get_repository()
+            if repo is None:
+                return [], source_label
             records = repo.fetch_current_headcount(reference_date)
             _HEADCOUNT_CACHE[reference_date] = (records, source_label)
             if force_refresh:
                 _CUSTOM_UPLOADED_DATA = None
-        except Exception as err:
+        except Exception:
             if DEFAULT_EXCEL_PATH.exists():
                 fallback_repo = ExcelHeadcountRepository(str(DEFAULT_EXCEL_PATH), DEFAULT_EXCEL_PATH.name)
                 records = fallback_repo.fetch_current_headcount(reference_date)
                 _HEADCOUNT_CACHE[reference_date] = (records, f"Fallback Local ({DEFAULT_EXCEL_PATH.name})")
             else:
-                raise err
+                return [], "Aguardando Upload de Planilha (.xlsx/.csv)"
 
-    return _HEADCOUNT_CACHE[reference_date]
+    return _HEADCOUNT_CACHE.get(reference_date, ([], "Aguardando Upload de Planilha (.xlsx/.csv)"))
 
 
 @app.post("/api/login")
@@ -206,6 +239,11 @@ async def upload_headcount_data_endpoint(
     data_file: UploadFile = File(...),
     reference_date: str = Form("2026-10-01"),
 ):
+    """
+    Lê a planilha (.xlsx ou .csv) em memória, salva em cache e em /tmp, e já devolve
+    o objeto completo `data` (summary) para que o frontend atualize a tela instantaneamente
+    sem depender de segunda chamada na Vercel.
+    """
     global _CUSTOM_UPLOADED_DATA
     require_auth(request, allow_viewer=False)
 
@@ -223,14 +261,18 @@ async def upload_headcount_data_endpoint(
         source_label = f"Upload Web ({data_file.filename})"
         _CUSTOM_UPLOADED_DATA = (records, source_label)
         _HEADCOUNT_CACHE[reference_date] = (records, source_label)
+        _save_uploaded_to_tmp(records, source_label)
 
         summary = PeopleAnalyticsService.build_organization_summary(records=records)
         return JSONResponse(
             content={
                 "status": "success",
                 "source": source_label,
+                "reference_date": reference_date,
+                "default_label": os.getenv("DEFAULT_REFERENCE_LABEL", "Base Outubro 2026"),
                 "total_records": len(records),
                 "total_headcount": summary["total_headcount"],
+                "data": summary,
             }
         )
     except Exception as exc:
@@ -296,6 +338,12 @@ async def update_powerpoint_endpoint(
         else:
             records, _ = fetch_cached_records(reference_date)
 
+        if not records:
+            raise HTTPException(
+                status_code=400,
+                detail="Nenhuma base de Headcount ativa. Suba primeiro a planilha (.xlsx/.csv) no botão 'Subir Base'.",
+            )
+
         if not MAPPING_JSON_PATH.exists():
             raise FileNotFoundError(f"Arquivo de mapeamento não encontrado: {MAPPING_JSON_PATH}")
 
@@ -318,6 +366,8 @@ async def update_powerpoint_endpoint(
                 "download_filename": report.output_filename,
             }
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro interno no processamento do PowerPoint: {str(exc)}")
