@@ -55,7 +55,6 @@ class PeopleAnalyticsService:
     ) -> Dict[str, Any]:
         cls._load_mapping_metadata()
 
-        # Ignora automaticamente na árvore qualquer unidade com Headcount 0 (extinta / zerada)
         normalized_records = [
             HeadcountRecord(
                 segmento_des=cls._normalize_segmento(r.segmento_des, r.unidade_des),

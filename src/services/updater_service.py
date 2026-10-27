@@ -99,12 +99,19 @@ class PresentationUpdaterService:
         base_area_totals = dict(area_totals)
 
         unit_lookup: Dict[tuple[int, str], Dict[str, Any]] = {}
+        active_databricks_keys = set()
+
         for u in self.config.get("unit_boxes", []):
             s_i = int(u["slide_index"])
             full_k = f"{u['name_path']} | {u['badge_path']}"
             unit_lookup[(s_i, full_k)] = u
             unit_lookup[(s_i, str(u["badge_path"]).strip())] = u
             unit_lookup[(s_i, str(u["name_path"]).strip())] = u
+
+            u_tuple = (u["segmento"], u["area"], u["unidade"])
+            hc_val = unit_totals.get(u_tuple, 0)
+            if hc_val > 0:
+                active_databricks_keys.add((s_i, full_k))
 
         area_sub_lookup: Dict[tuple[int, str], Dict[str, Any]] = {}
         for a in self.config.get("area_subtotal_shapes", []):
@@ -116,11 +123,9 @@ class PresentationUpdaterService:
 
         unit_overrides_by_key: Dict[tuple[int, str], Dict[str, Any]] = {}
         removed_unit_keys: Dict[tuple[int, str], Dict[str, Any]] = {}
-        cloned_overrides_by_unit: Dict[tuple[int, str], Dict[str, Any]] = {}
         direct_shape_overrides: Dict[tuple[int, str], Dict[str, Any]] = {}
         unmapped_overrides: List[Dict[str, Any]] = []
         custom_added_boxes: List[Dict[str, Any]] = []
-        custom_removed_unmapped: List[Dict[str, Any]] = []
 
         cascaded_area_deltas: Dict[tuple[str, str], int] = {}
         cascaded_seg_deltas: Dict[str, int] = {}
@@ -140,14 +145,14 @@ class PresentationUpdaterService:
             total_company = max(0, total_company + delta_val)
             cascaded_company_delta += delta_val
 
-        # REGRA DE OURO: Auto-exclusão imediata para qualquer unidade mapeada cujo headcount seja 0
+        # REGRA DE OURO RIGOROSA: Qualquer unidade mapeada que NÃO esteja presente na base ativa (ou tenha HC=0) é marcada para REMOÇÃO imediata!
         for u in self.config.get("unit_boxes", []):
             s_i = int(u["slide_index"])
+            full_k = f"{u['name_path']} | {u['badge_path']}"
             u_tuple = (u["segmento"], u["area"], u["unidade"])
             hc_val = unit_totals.get(u_tuple, 0)
-            if hc_val == 0:
-                canonical_key = f"{u['name_path']} | {u['badge_path']}"
-                removed_unit_keys[(s_i, canonical_key)] = {"auto_zero": True, "unidade": u["unidade"]}
+            if hc_val == 0 or (s_i, full_k) not in active_databricks_keys:
+                removed_unit_keys[(s_i, full_k)] = {"auto_purge": True, "unidade": u["unidade"]}
 
         if custom_overrides:
             for ov in custom_overrides:
@@ -309,7 +314,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 5. Unidades Existentes (Excluindo se HC = 0)
+        # 5. Unidades Existentes (Excluindo automaticamente se ausentes ou HC = 0)
         for u in self.config.get("unit_boxes", []):
             s_idx = int(u["slide_index"])
             sl = prs.slides[s_idx]
@@ -326,10 +331,10 @@ class PresentationUpdaterService:
                         canonical_key,
                         u["unidade"],
                         TargetType.HEADCOUNT_UNIT,
-                        f"{old_txt} [HC = 0]",
-                        "(Área Zerada Excluída Automaticamente) [0]",
+                        f"{old_txt} [Presente Antigo]",
+                        "(Área Removida por Ausência na Base Atual) [0]",
                         UpdateStatus.REMOVED_BOX,
-                        f"🗑️ Área sem headcount (0) excluída automaticamente do slide e coluna compactada · {u['segmento']} › {u['area']}",
+                        f"🗑️ Área ausente na competência atual removida automaticamente do slide · {u['segmento']} › {u['area']}",
                     )
                 )
                 continue
@@ -379,7 +384,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 6. Novas Caixas Clonadas (Com alinhamento correto para Superintendências)
+        # 6. Novas Caixas Clonadas
         for cl in self.config.get("cloned_new_boxes", []):
             s_idx = int(cl["slide_index"])
             sl = prs.slides[s_idx]
