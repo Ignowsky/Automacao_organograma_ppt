@@ -6,13 +6,6 @@ from src.domain.models import HeadcountRecord, OrganizationalRole
 
 
 class PeopleAnalyticsService:
-    """
-    Serviço avançado de inteligência organizacional para o Painel Web:
-    - Normaliza dinamicamente qualquer Diretoria/Entidade (incluindo Compliance);
-    - Classifica papéis hierárquicos utilizando a gramática universal de 5 níveis;
-    - Agrupa áreas respeitando a árvore da CNI, SESI, SENAI e IEL.
-    """
-
     _MANAGER_LOOKUP: Dict[tuple[str, str, str], Dict[str, Any]] = {}
 
     @classmethod
@@ -71,6 +64,7 @@ class PeopleAnalyticsService:
                 ano_mes_referencia=r.ano_mes_referencia,
             )
             for r in records
+            if r.headcount > 0  # Ignora áreas zeradas na árvore de headcount
         ]
 
         filtered = normalized_records

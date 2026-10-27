@@ -5,7 +5,6 @@ import unicodedata
 
 
 def _normalize_str(text: str) -> str:
-    """Normaliza texto removendo acentos e espaços extras para classificação hierárquica."""
     if not text:
         return ""
     clean = " ".join(str(text).strip().split()).lower()
@@ -24,30 +23,24 @@ class UpdateStatus(str, Enum):
 
 
 class TargetType(str, Enum):
-    HEADCOUNT_UNIT = "HEADCOUNT_UNIDADE"           # Ex: Gerência ou linha direta da Superintendência
-    HEADCOUNT_AREA_SUBTOTAL = "SUBTOTAL_AREA"      # Ex: Badges no rodapé das colunas (Soma de AREA_DES)
-    HEADCOUNT_SEGMENT_TOTAL = "TOTAL_DIRETORIA"    # Ex: Total do slide ou Macroestrutura (Soma de SEGMENTO_DES)
-    HEADCOUNT_COMPANY_TOTAL = "TOTAL_GERAL_CNI"    # Ex: Shape 66 do Slide 0 (938)
-    AREA_NAME = "NOME_DA_AREA"                     # Substitui o nome da área preservando o (Nome do Gestor)
-    REFERENCE_DATE = "DATA_BASE_REFERENCIA"        # Ex: "Base Maio 2026" -> "Base Outubro 2026"
+    HEADCOUNT_UNIT = "HEADCOUNT_UNIDADE"
+    HEADCOUNT_AREA_SUBTOTAL = "SUBTOTAL_AREA"
+    HEADCOUNT_SEGMENT_TOTAL = "TOTAL_DIRETORIA"
+    HEADCOUNT_COMPANY_TOTAL = "TOTAL_GERAL_CNI"
+    AREA_NAME = "NOME_DA_AREA"
+    REFERENCE_DATE = "DATA_BASE_REFERENCIA"
 
 
 class OrganizationalRole(str, Enum):
-    """
-    Gramática Hierárquica de 5 Níveis do Sistema Indústria (CNI, SESI, SENAI, IEL):
-    Garante que Diretorias Vinculadas fiquem abaixo da Diretoria Geral e acima das Superintendências,
-    e que Superintendências nunca sejam posicionadas no lugar de Gerências.
-    """
-    CONSELHO_SUPERIOR = "CONSELHO_SUPERIOR"               # Rank 0: Conselho Nacional SENAI, Presidência
-    DIRETORIA_CABECA = "DIRETORIA_CABECA"                 # Rank 1: Diretoria Geral SENAI, Sup. Geral SESI, Gabinete Diretoria CNI
-    DIRETORIA_VINCULADA = "DIRETORIA_VINCULADA"           # Rank 2: Diretoria interna (ex: Diretoria do Instituto Integrador no SENAI)
-    SUPERINTENDENCIA_TITULAR = "SUPERINTENDENCIA_TITULAR" # Rank 3: Titular de Superintendência (ex: Sup. de Negócios Institucionais)
-    GERENCIA_UNIDADE = "GERENCIA_UNIDADE"                 # Rank 4: Gerências subordinadas, Ouvidoria, Logística, etc.
+    CONSELHO_SUPERIOR = "CONSELHO_SUPERIOR"
+    DIRETORIA_CABECA = "DIRETORIA_CABECA"
+    DIRETORIA_VINCULADA = "DIRETORIA_VINCULADA"
+    SUPERINTENDENCIA_TITULAR = "SUPERINTENDENCIA_TITULAR"
+    GERENCIA_UNIDADE = "GERENCIA_UNIDADE"
 
 
 @dataclass(frozen=True)
 class HeadcountRecord:
-    """Representa uma linha retornada pela query do Databricks ou planilha."""
     segmento_des: str
     area_des: str
     unidade_des: str
@@ -56,7 +49,6 @@ class HeadcountRecord:
 
     @property
     def organizational_role(self) -> OrganizationalRole:
-        """Determina dinamicamente o papel hierárquico da unidade na árvore organizacional."""
         s_norm = _normalize_str(self.segmento_des)
         a_norm = _normalize_str(self.area_des)
         u_norm = _normalize_str(self.unidade_des)
@@ -82,7 +74,6 @@ class HeadcountRecord:
 
     @property
     def hierarchy_rank(self) -> int:
-        """Retorna a ordem numérica estrita na árvore (0 = topo até 4 = base operacional)."""
         rank_map = {
             OrganizationalRole.CONSELHO_SUPERIOR: 0,
             OrganizationalRole.DIRETORIA_CABECA: 1,
@@ -94,7 +85,6 @@ class HeadcountRecord:
 
     @property
     def is_direct_staff_or_board(self) -> bool:
-        """Indica se a área pertence ao topo diretivo/staff (acima das superintendências regulares)."""
         return (
             self.area_des == self.segmento_des
             or self.organizational_role in (
@@ -108,9 +98,8 @@ class HeadcountRecord:
 
 @dataclass(frozen=True)
 class ShapeMappingRule:
-    """Regra explícita e auditável que vincula uma Shape do PPTX ao dado do Databricks."""
     slide_index: int
-    shape_id: str                  # Suporta IDs aninhados em grupos, ex: "5.7" ou "138.140"
+    shape_id: str
     target_type: TargetType
     segmento_key: Optional[str] = None
     area_key: Optional[str] = None
@@ -121,7 +110,6 @@ class ShapeMappingRule:
 
 @dataclass
 class ChangeLogEntry:
-    """Registro individual de auditoria para cada alteração planejada/executada."""
     slide_index: int
     shape_id: str
     shape_name: str
@@ -134,7 +122,6 @@ class ChangeLogEntry:
 
 @dataclass
 class ExecutionReport:
-    """Relatório final (Fase 9) retornado pela API e exibido na interface da Vercel."""
     original_filename: str
     output_filename: str
     slides_before: int

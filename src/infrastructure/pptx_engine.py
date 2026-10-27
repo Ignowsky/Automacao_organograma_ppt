@@ -13,7 +13,6 @@ P_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
 
 
 def normalize_text_key(text: str) -> str:
-    """Remove acentos, espaços extras e padroniza caixa baixa para comparação resiliente."""
     if not text:
         return ""
     clean = " ".join(str(text).strip().split()).lower()
@@ -22,14 +21,6 @@ def normalize_text_key(text: str) -> str:
 
 
 def classify_organizational_node(segmento: str, area: str, unidade: str) -> Tuple[str, int]:
-    """
-    Gramática Hierárquica Universal de 5 Níveis do Sistema Indústria (CNI, SESI, SENAI, IEL):
-      - Rank 0 ('CONSELHO_SUPERIOR'): Conselho Nacional SENAI, Presidência
-      - Rank 1 ('DIRETORIA_CABECA'): Diretoria Geral SENAI, Superintendência Geral SESI ou Gabinete Titular
-      - Rank 2 ('DIRETORIA_VINCULADA'): Diretoria criada dentro de uma Entidade/Diretoria Geral (ex: Instituto Integrador)
-      - Rank 3 ('SUPERINTENDENCIA_TITULAR'): Qualquer Superintendência Titular
-      - Rank 4 ('GERENCIA_UNIDADE'): Gerências operacionais, Ouvidoria, Logística, etc.
-    """
     s_norm = normalize_text_key(segmento)
     a_norm = normalize_text_key(area)
     u_norm = normalize_text_key(unidade)
@@ -55,11 +46,6 @@ def classify_organizational_node(segmento: str, area: str, unidade: str) -> Tupl
 
 
 class PptxSurgicalEngine:
-    """
-    Motor cirúrgico de baixo nível para leitura, atualização de Runs, edição manual de gestores,
-    clonagem/remoção de grupos com compactação de coluna e extração de Preview 16:9 limpo no python-pptx.
-    """
-
     DEFAULT_VERTICAL_GAP_EMU = 95000
     STANDARD_UNIT_HEIGHT_EMU = 629312
     COLUMN_ALIGNMENT_TOLERANCE_EMU = 180000
@@ -90,7 +76,6 @@ class PptxSurgicalEngine:
 
     @staticmethod
     def split_area_and_manager(shape: Optional[BaseShape]) -> tuple[str, str]:
-        """Retorna separadamente (nome_da_area, nome_do_gestor_com_parenteses)."""
         if shape is None or not getattr(shape, "has_text_frame", False):
             return "", ""
         raw = shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
@@ -206,9 +191,6 @@ class PptxSurgicalEngine:
         hex_color: str = "164194",
         width_emu: int = 19050,
     ) -> None:
-        """
-        Aplica borda pontilhada/tracejada (<a:prstDash val="dash"/>) no shape principal da caixa.
-        """
         if shape_or_group is None:
             return
 
@@ -285,6 +267,7 @@ class PptxSurgicalEngine:
         manager_placeholder: str = "(Definir Gestor)",
         left_override: Optional[int] = None,
         top_override: Optional[int] = None,
+        role_code: str = "GERENCIA_UNIDADE",
     ) -> Dict[str, Any]:
         template_group = cls._find_any_unit_group_on_slide(slide, str(template_group_id))
         if template_group is None:
@@ -303,6 +286,8 @@ class PptxSurgicalEngine:
         cloned_group: GroupShape = slide.shapes[-1]
 
         target_left = left_override if left_override is not None else col_left
+        if role_code in ("SUPERINTENDENCIA_TITULAR", "DIRETORIA_VINCULADA"):
+            target_left = col_left
 
         if top_override is not None:
             target_top = top_override
@@ -535,13 +520,8 @@ class PptxSurgicalEngine:
                 max_b = max(g1["top"] + g1["height"], g2["top"] + g2["height"])
                 return _to_pct(min_l, min_t, max_r - min_l, max_b - min_t)
 
-            # 1. Unidades mapeadas (unit_boxes + extinct_boxes)
             all_unit_rules = [
                 {**u, "is_extinct": False} for u in cfg.get("unit_boxes", []) if int(u["slide_index"]) == s_idx
-            ] + [
-                {**ex, "is_extinct": True, "segmento": "", "area": "Sem Contratos", "unidade": ""}
-                for ex in cfg.get("extinct_boxes", [])
-                if int(ex["slide_index"]) == s_idx
             ]
 
             for u in all_unit_rules:
@@ -565,6 +545,9 @@ class PptxSurgicalEngine:
                 if not box_pct:
                     continue
 
+                if badge_txt == "0":
+                    continue
+
                 is_head = (
                     area_txt.lower().startswith("diretoria")
                     or area_txt.lower().startswith("superintend")
@@ -582,12 +565,11 @@ class PptxSurgicalEngine:
                         "manager": mgr_txt,
                         "badge": badge_txt,
                         "is_head": is_head,
-                        "is_extinct": bool(u.get("is_extinct") or badge_txt == "0"),
+                        "is_extinct": False,
                         **box_pct,
                     }
                 )
 
-            # 2. Subtotais de Superintendência (area_subtotal_shapes)
             for a in cfg.get("area_subtotal_shapes", []):
                 if int(a["slide_index"]) != s_idx:
                     continue
@@ -610,7 +592,6 @@ class PptxSurgicalEngine:
                     }
                 )
 
-            # 3. Totais de Diretoria e Total Geral CNI
             tot_rules = [
                 {**s, "label": f"Total {s.get('segmento', '')}", "is_company": False}
                 for s in cfg.get("segment_total_shapes", [])
@@ -639,7 +620,6 @@ class PptxSurgicalEngine:
                     }
                 )
 
-            # 4. Datas Base
             for d in cfg.get("date_shapes", []):
                 if int(d["slide_index"]) != s_idx:
                     continue
@@ -659,7 +639,6 @@ class PptxSurgicalEngine:
                     }
                 )
 
-            # 5. Títulos e Caixas Institucionais Reais
             for path, g in geom_map.items():
                 if path in consumed_paths or g["is_group"]:
                     continue
@@ -669,12 +648,9 @@ class PptxSurgicalEngine:
                 txt = sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
                 if not txt:
                     continue
-
                 if len(txt) <= 1 and not txt.isdigit():
                     continue
-
                 pct = _to_pct(g["left"], g["top"], g["width"], g["height"])
-
                 if pct["width_pct"] < 2.5 or pct["height_pct"] < 2.0:
                     continue
 
@@ -720,5 +696,4 @@ class PptxSurgicalEngine:
         return slides_data
 
 
-# Alias de compatibilidade
 PowerPointEngine = PptxSurgicalEngine
