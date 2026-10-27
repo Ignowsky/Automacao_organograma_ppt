@@ -7,10 +7,10 @@ from src.domain.models import HeadcountRecord
 
 class PeopleAnalyticsService:
     """
-    Serviço de inteligência organizacional para o Painel Web:
-    - Separa Gabinete/Titular de Superintendência das Gerências subordinadas.
-    - Ordena Gerências por Headcount decrescente.
-    - Enriquece cada unidade com o nome do Gestor mapeado e o Slide correspondente.
+    Serviço avançado de inteligência organizacional para o Painel Web:
+    - Normaliza dinamicamente qualquer Diretoria/Entidade (incluindo Compliance e novas diretorias);
+    - Classifica papéis hierárquicos (Diretoria Cabeça, Diretoria Nível 2, Superintendência Titular e Gerências);
+    - Agrupa áreas respeitando a árvore da CNI, SESI, SENAI e IEL de forma 100% dinâmica.
     """
 
     _MANAGER_LOOKUP: Dict[tuple[str, str, str], Dict[str, Any]] = {}
@@ -45,9 +45,28 @@ class PeopleAnalyticsService:
             pass
 
     @staticmethod
+    def _normalize_segmento(segmento: str, unidade: str) -> str:
+        seg_clean = str(segmento or "").strip()
+        uni_clean = str(unidade or "").strip()
+        
+        # Promove qualquer variação de Compliance para Diretoria Principal
+        if "Compliance" in seg_clean or "Compliance" in uni_clean:
+            return "Diretoria de Compliance e Integridade"
+        
+        return seg_clean
+
+    @staticmethod
     def _classify_unit_role(area_name: str, unit_name: str) -> str:
         u_low = unit_name.lower().strip()
-        if u_low.startswith("diretoria") or u_low.startswith("superintendência geral") or u_low.startswith("conselho"):
+        a_low = area_name.lower().strip()
+        
+        if (
+            u_low.startswith("diretoria")
+            or u_low.startswith("superintendência geral")
+            or u_low.startswith("conselho")
+            or "instituto integrador" in u_low
+            or "diretoria do instituto" in u_low
+        ):
             return "DIRETORIA_CABECA"
         if u_low.startswith("superintend"):
             return "SUPERINTENDENCIA_TITULAR"
@@ -63,9 +82,22 @@ class PeopleAnalyticsService:
     ) -> Dict[str, Any]:
         cls._load_mapping_metadata()
 
-        filtered = records
+        # Normaliza segmentos em todos os registros de forma dinâmica
+        normalized_records = [
+            HeadcountRecord(
+                segmento_des=cls._normalize_segmento(r.segmento_des, r.unidade_des),
+                area_des=r.area_des,
+                unidade_des=r.unidade_des,
+                headcount=r.headcount,
+                ano_mes_referencia=r.ano_mes_referencia,
+            )
+            for r in records
+        ]
+
+        filtered = normalized_records
         if segmento_filter and segmento_filter != "TODOS":
-            filtered = [r for r in filtered if r.segmento_des == segmento_filter]
+            norm_seg_filter = cls._normalize_segmento(segmento_filter, "")
+            filtered = [r for r in filtered if r.segmento_des == norm_seg_filter]
         if area_filter and area_filter != "TODAS":
             filtered = [r for r in filtered if r.area_des == area_filter]
         if search_term:
@@ -91,11 +123,23 @@ class PeopleAnalyticsService:
             if meta.get("slide_number"):
                 seg["slide_number"] = meta["slide_number"]
 
+            is_staff = (
+                r.area_des == r.segmento_des
+                or r.area_des in (
+                    "CNI/SP",
+                    "Diretoria Geral",
+                    "Conselho Nacional SENAI",
+                    "Diretoria do Instituto Integrador para Inovação Industrial",
+                    "Negócios Institucionais",
+                )
+                or role == "DIRETORIA_CABECA"
+            )
+
             area = seg["areas"].setdefault(
                 r.area_des,
                 {
                     "subtotal": 0,
-                    "is_direct_staff": (r.area_des == r.segmento_des or r.area_des in ("CNI/SP", "Diretoria Geral", "Conselho Nacional SENAI")),
+                    "is_direct_staff": is_staff,
                     "unidades": [],
                 },
             )
@@ -112,14 +156,14 @@ class PeopleAnalyticsService:
                 }
             )
 
-        # Ordena áreas (Gabinete/Diretoria primeiro, depois Superintendências por maior subtotal)
-        # E dentro de cada área: Titular da Superintendência no TOPO, seguido por Gerências em ordem decrescente de HC!
         role_priority = {"DIRETORIA_CABECA": 0, "SUPERINTENDENCIA_TITULAR": 1, "GERENCIA_UNIDADE": 2}
         for seg_name, seg_obj in by_segment.items():
             for area_name, area_obj in seg_obj["areas"].items():
                 area_obj["unidades"].sort(
                     key=lambda u: (role_priority.get(u["role"], 9), -u["headcount"], u["unidade_des"])
                 )
+            
+            # Ordenação inteligente da árvore: Gabinetes e Diretorias Nível 2 no topo (0), depois Superintendências (1)
             sorted_areas = dict(
                 sorted(
                     seg_obj["areas"].items(),
@@ -128,7 +172,6 @@ class PeopleAnalyticsService:
             )
             seg_obj["areas"] = sorted_areas
 
-        # Ordena Segmentos por maior Headcount total
         sorted_segments = dict(
             sorted(by_segment.items(), key=lambda item: -item[1]["total"])
         )
@@ -136,12 +179,12 @@ class PeopleAnalyticsService:
         return {
             "total_headcount": total_headcount,
             "total_unidades": len(filtered),
-            "available_segments": sorted({r.segmento_des for r in records}),
+            "available_segments": sorted({r.segmento_des for r in normalized_records}),
             "available_areas": sorted(
                 {
                     r.area_des
-                    for r in records
-                    if not segmento_filter or segmento_filter == "TODOS" or r.segmento_des == segmento_filter
+                    for r in normalized_records
+                    if not segmento_filter or segmento_filter == "TODOS" or r.segmento_des == cls._normalize_segmento(segmento_filter, "")
                 }
             ),
             "hierarchy": sorted_segments,
