@@ -18,13 +18,20 @@ from src.infrastructure.databricks_repository import parse_reference_date_info
 
 class PresentationUpdaterService:
     def __init__(self, mapping_json_path: str = "config/slide_mapping.json") -> None:
-        if not os.path.exists(mapping_json_path):
-            raise FileNotFoundError(f"Arquivo de mapeamento não encontrado: {mapping_json_path}")
-        if os.path.getsize(mapping_json_path) == 0:
-            raise ValueError(f"O arquivo '{mapping_json_path}' está vazio (0 bytes).")
-
-        with open(mapping_json_path, "r", encoding="utf-8-sig") as f:
-            self.config: Dict[str, Any] = json.load(f)
+        # Se o JSON não existir ou estiver vazio, inicializa com autodescoberta dinâmica em tempo de execução
+        if os.path.exists(mapping_json_path) and os.path.getsize(mapping_json_path) > 0:
+            with open(mapping_json_path, "r", encoding="utf-8-sig") as f:
+                self.config: Dict[str, Any] = json.load(f)
+        else:
+            self.config = {
+                "unit_boxes": [],
+                "area_subtotal_shapes": [],
+                "segment_total_shapes": [],
+                "company_total_shapes": [],
+                "date_shapes": [],
+                "cloned_new_boxes": [],
+                "extinct_boxes": []
+            }
 
     @staticmethod
     def _get_shape_left_emu(slide: Slide, shape_path: str) -> Optional[int]:
@@ -98,6 +105,10 @@ class PresentationUpdaterService:
         base_seg_totals = dict(seg_totals)
         base_area_totals = dict(area_totals)
 
+        # Autodescoberta dinâmica caso o JSON esteja vazio
+        if not self.config.get("unit_boxes"):
+            self.config = PptxSurgicalEngine.auto_discover_slide_metadata(prs, records)
+
         unit_lookup: Dict[tuple[int, str], Dict[str, Any]] = {}
         active_databricks_keys = set()
 
@@ -145,7 +156,7 @@ class PresentationUpdaterService:
             total_company = max(0, total_company + delta_val)
             cascaded_company_delta += delta_val
 
-        # REGRA DE OURO RIGOROSA: Puga automática de qualquer caixa mapeada ausente em outubro ou com HC = 0
+        # REGRA DE EXCLUSÃO CIRÚRGICA: Puga automática de qualquer caixa mapeada ausente em outubro ou com HC = 0
         for u in self.config.get("unit_boxes", []):
             s_i = int(u["slide_index"])
             full_k = f"{u['name_path']} | {u['badge_path']}"
@@ -389,7 +400,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 6. Novas Caixas Clonadas (Garantindo criação correta de Negócios Institucionais)
+        # 6. Novas Caixas Clonadas (Garantindo criação de Negócios Institucionais)
         for cl in self.config.get("cloned_new_boxes", []):
             s_idx = int(cl["slide_index"])
             sl = prs.slides[s_idx]

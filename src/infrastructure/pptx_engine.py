@@ -236,21 +236,12 @@ class PptxSurgicalEngine:
         prst_dash.set("val", "dash")
 
     @classmethod
-    def auto_discover_mapping(cls, prs: Presentation) -> Dict[str, Any]:
+    def auto_discover_slide_metadata(cls, prs: Presentation, records: List[Any]) -> Dict[str, Any]:
         """
-        Varre dinamicamente a apresentação .pptx em tempo de execução e autodescobre
-        os caminhos de shapes, grupos, unidades, subtotais e totais sem depender de JSON estático.
+        Analisa a apresentação e a base de headcount em tempo de execução, 
+        mapeando dinamicamente cada unidade ao seu shape correspondente no slide por similaridade textual.
         """
-        discovered = {
-            "unit_boxes": [],
-            "area_subtotal_shapes": [],
-            "segment_total_shapes": [],
-            "company_total_shapes": [],
-            "date_shapes": [],
-            "cloned_new_boxes": [],
-            "extinct_boxes": []
-        }
-
+        discovered_units = []
         for s_idx, slide in enumerate(prs.slides):
             geom_map = cls._collect_slide_geometry(slide)
             for path, g in geom_map.items():
@@ -260,13 +251,19 @@ class PptxSurgicalEngine:
                 txt = sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
                 if not txt:
                     continue
-
-                # Detecta badges numéricos isolados (Headcount)
-                if txt.isdigit() and len(txt) <= 4:
-                    # Procura um shape de texto vizinho no mesmo grupo ou coordenada vertical próxima
-                    pass
-
-        return discovered
+                # Se o texto corresponder a uma unidade da base, mapeia dinamicamente
+                for r in records:
+                    if normalize_text_key(r.unidade_des) in normalize_text_key(txt):
+                        discovered_units.append({
+                            "slide_index": s_idx,
+                            "segmento": r.segmento_des,
+                            "area": r.area_des,
+                            "unidade": r.unidade_des,
+                            "name_path": path,
+                            "badge_path": path
+                        })
+                        break
+        return {"unit_boxes": discovered_units}
 
     @classmethod
     def _find_any_unit_group_on_slide(cls, slide: Slide, preferred_id_str: str) -> Optional[GroupShape]:
