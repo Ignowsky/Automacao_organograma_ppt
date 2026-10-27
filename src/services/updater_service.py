@@ -10,17 +10,19 @@ from src.domain.models import (
     ExecutionReport,
     UpdateStatus,
     TargetType,
+    OrganizationalRole,
 )
-from src.infrastructure.pptx_engine import PptxSurgicalEngine
+from src.infrastructure.pptx_engine import PptxSurgicalEngine, classify_organizational_node, normalize_text_key
 from src.infrastructure.databricks_repository import parse_reference_date_info
 
 
 class PresentationUpdaterService:
     """
-    Orquestrador central das Fases 2 a 9 com suporte a:
-    - Edição Manual (UPDATE), Adição de Novas Caixas (ADD) e Remoção de Caixas (REMOVE);
-    - Recálculo Matemático em Cascata (Unidade -> Subtotal Superintendência -> Total Diretoria -> Total CNI);
-    - Injeção das regras do slide_mapping.json na extração da Pré-Visualização 16:9 (slides_preview).
+    Orquestrador central com suporte completo a:
+    - Edição Manual (UPDATE), Adição de Novas Caixas (ADD) e Remoção (REMOVE);
+    - Recálculo em Cascata (Unidade -> Subtotal Superintendência -> Total Diretoria -> Total CNI);
+    - Classificação hierárquica universal de 5 níveis (Suporte a novas Diretorias e Superintendências);
+    - Extração do Preview 16:9 (slides_preview) com detecção de borda tracejada.
     """
 
     def __init__(self, mapping_json_path: str = "config/slide_mapping.json") -> None:
@@ -34,7 +36,6 @@ class PresentationUpdaterService:
 
     @staticmethod
     def _get_shape_left_emu(slide: Slide, shape_path: str) -> Optional[int]:
-        """Obtém a coordenada horizontal (left) da shape ou de seu grupo pai no slide."""
         top_id = str(shape_path).split("|")[0].strip().split(".")[0].strip()
         top_sh = PptxSurgicalEngine.find_shape_by_path(slide, top_id)
         if top_sh is not None and hasattr(top_sh, "left"):
@@ -47,10 +48,6 @@ class PresentationUpdaterService:
     def _infer_segment_and_area_by_column(
         self, slide: Slide, slide_index: int, shape_key: str
     ) -> tuple[Optional[str], Optional[str]]:
-        """
-        Identifica a qual Diretoria (segmento) e Superintendência (area) uma caixa pertence
-        comparando o alinhamento horizontal (left) com os subtotais e caixas da mesma coluna.
-        """
         probe_path = shape_key.split("|")[0].strip() if "|" in shape_key else shape_key
         target_left = self._get_shape_left_emu(slide, probe_path)
 
@@ -93,9 +90,6 @@ class PresentationUpdaterService:
             sample_ref = records[0].ano_mes_referencia if records else None
             reference_label = parse_reference_date_info(sample_ref)["label"]
 
-        # -------------------------------------------------------------------------
-        # FASE A: TOTAIS BASE DA PLANILHA / DATABRICKS
-        # -------------------------------------------------------------------------
         total_company = sum(r.headcount for r in records)
         seg_totals: Dict[str, int] = {}
         area_totals: Dict[tuple[str, str], int] = {}
@@ -112,9 +106,6 @@ class PresentationUpdaterService:
         base_seg_totals = dict(seg_totals)
         base_area_totals = dict(area_totals)
 
-        # -------------------------------------------------------------------------
-        # FASE B: PRÉ-PROCESSAMENTO DE OVERRIDES (UPDATE / ADD / REMOVE) + CASCATA
-        # -------------------------------------------------------------------------
         unit_lookup: Dict[tuple[int, str], Dict[str, Any]] = {}
         for u in self.config.get("unit_boxes", []):
             s_i = int(u["slide_index"])
@@ -321,9 +312,6 @@ class PresentationUpdaterService:
                         )
                         _apply_cascade_delta(inf_seg, inf_area, delta)
 
-        # -------------------------------------------------------------------------
-        # FASE C: EXECUÇÃO DAS ATUALIZAÇÕES NO POWERPOINT E LOG DE AUDITORIA
-        # -------------------------------------------------------------------------
         report = ExecutionReport(
             original_filename=original_filename,
             output_filename=f"Atualizado_{original_filename}",
@@ -472,7 +460,7 @@ class PresentationUpdaterService:
                         )
                     )
 
-        # 4. Subtotais de Superintendência (Colunas)
+        # 4. Subtotais de Superintendência
         for a in self.config.get("area_subtotal_shapes", []):
             s_idx = int(a["slide_index"])
             a_path = str(a["shape_path"]).strip()
@@ -629,7 +617,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 6. Novas Caixas Clonadas
+        # 6. Novas Caixas Clonadas (Aplicando Borda Tracejada OpenXML se nova diretoria/gerência)
         for cl in self.config.get("cloned_new_boxes", []):
             s_idx = int(cl["slide_index"])
             sl = prs.slides[s_idx]
@@ -651,6 +639,9 @@ class PresentationUpdaterService:
                 top_override=cl.get("top_override"),
             )
 
+            if cloned_info and cloned_info.get("container_shape"):
+                PptxSurgicalEngine.apply_dashed_border_xml(cloned_info["container_shape"], hex_color="164194")
+
             entry = ChangeLogEntry(
                 s_idx + 1,
                 f"{cloned_info['name_path']} | {cloned_info['badge_path']}",
@@ -659,7 +650,7 @@ class PresentationUpdaterService:
                 "(Não existia no slide)",
                 f"{disp_name} {mgr_ph} [{val}]",
                 UpdateStatus.CLONED_NEW_BOX,
-                f"Nova caixa clonada · {cl['segmento']} › {cl['area']}",
+                f"Nova caixa clonada (tracejada) · {cl['segmento']} › {cl['area']}",
             )
             if ov is not None:
                 manual_entries.append(entry)
@@ -680,6 +671,9 @@ class PresentationUpdaterService:
                     new_headcount=add_req["new_headcount"],
                     manager_placeholder=add_req["new_manager"],
                 )
+                if cloned_info and cloned_info.get("container_shape"):
+                    PptxSurgicalEngine.apply_dashed_border_xml(cloned_info["container_shape"], hex_color="164194")
+
                 manual_entries.append(
                     ChangeLogEntry(
                         s_idx + 1,
@@ -689,7 +683,7 @@ class PresentationUpdaterService:
                         "(Nova Caixa Adicionada na Web)",
                         f"{add_req['new_area_name']} {add_req['new_manager']} [{add_req['new_headcount']}]",
                         UpdateStatus.CLONED_NEW_BOX,
-                        f"➕ Nova caixa criada pelo utilizador (+Recálculo em Cascata) · {add_req['segmento']} › {add_req['area']}",
+                        f"➕ Nova caixa tracejada criada pelo utilizador · {add_req['segmento']} › {add_req['area']}",
                     )
                 )
             except Exception:
@@ -879,7 +873,6 @@ class PresentationUpdaterService:
         report.conflict_count = sum(
             1 for c in report.changes if c.status == UpdateStatus.EXTINCT_IN_DATABRICKS
         )
-        # INJEÇÃO DA CONFIGURAÇÃO DO MAPPINGS.JSON NO EXTRATOR DO PREVIEW 16:9
         report.slides_preview = PptxSurgicalEngine.extract_slides_preview(prs_val, self.config)
 
         return pptx_bytes, report

@@ -2,15 +2,15 @@ import os
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from src.domain.models import HeadcountRecord
+from src.domain.models import HeadcountRecord, OrganizationalRole
 
 
 class PeopleAnalyticsService:
     """
     Serviço avançado de inteligência organizacional para o Painel Web:
-    - Normaliza dinamicamente qualquer Diretoria/Entidade (incluindo Compliance e novas diretorias);
-    - Classifica papéis hierárquicos (Diretoria Cabeça, Diretoria Nível 2, Superintendência Titular e Gerências);
-    - Agrupa áreas respeitando a árvore da CNI, SESI, SENAI e IEL de forma 100% dinâmica.
+    - Normaliza dinamicamente qualquer Diretoria/Entidade (incluindo Compliance);
+    - Classifica papéis hierárquicos utilizando a gramática universal de 5 níveis;
+    - Agrupa áreas respeitando a árvore da CNI, SESI, SENAI e IEL.
     """
 
     _MANAGER_LOOKUP: Dict[tuple[str, str, str], Dict[str, Any]] = {}
@@ -48,29 +48,9 @@ class PeopleAnalyticsService:
     def _normalize_segmento(segmento: str, unidade: str) -> str:
         seg_clean = str(segmento or "").strip()
         uni_clean = str(unidade or "").strip()
-        
-        # Promove qualquer variação de Compliance para Diretoria Principal
         if "Compliance" in seg_clean or "Compliance" in uni_clean:
             return "Diretoria de Compliance e Integridade"
-        
         return seg_clean
-
-    @staticmethod
-    def _classify_unit_role(area_name: str, unit_name: str) -> str:
-        u_low = unit_name.lower().strip()
-        a_low = area_name.lower().strip()
-        
-        if (
-            u_low.startswith("diretoria")
-            or u_low.startswith("superintendência geral")
-            or u_low.startswith("conselho")
-            or "instituto integrador" in u_low
-            or "diretoria do instituto" in u_low
-        ):
-            return "DIRETORIA_CABECA"
-        if u_low.startswith("superintend"):
-            return "SUPERINTENDENCIA_TITULAR"
-        return "GERENCIA_UNIDADE"
 
     @classmethod
     def build_organization_summary(
@@ -82,7 +62,6 @@ class PeopleAnalyticsService:
     ) -> Dict[str, Any]:
         cls._load_mapping_metadata()
 
-        # Normaliza segmentos em todos os registros de forma dinâmica
         normalized_records = [
             HeadcountRecord(
                 segmento_des=cls._normalize_segmento(r.segmento_des, r.unidade_des),
@@ -115,7 +94,7 @@ class PeopleAnalyticsService:
 
         for r in filtered:
             meta = cls._MANAGER_LOOKUP.get((r.segmento_des, r.area_des, r.unidade_des), {})
-            role = cls._classify_unit_role(r.area_des, r.unidade_des)
+            role = r.organizational_role.value
             seg = by_segment.setdefault(
                 r.segmento_des, {"total": 0, "slide_number": meta.get("slide_number", 1), "areas": {}}
             )
@@ -123,17 +102,7 @@ class PeopleAnalyticsService:
             if meta.get("slide_number"):
                 seg["slide_number"] = meta["slide_number"]
 
-            is_staff = (
-                r.area_des == r.segmento_des
-                or r.area_des in (
-                    "CNI/SP",
-                    "Diretoria Geral",
-                    "Conselho Nacional SENAI",
-                    "Diretoria do Instituto Integrador para Inovação Industrial",
-                    "Negócios Institucionais",
-                )
-                or role == "DIRETORIA_CABECA"
-            )
+            is_staff = r.is_direct_staff_or_board
 
             area = seg["areas"].setdefault(
                 r.area_des,
@@ -156,14 +125,20 @@ class PeopleAnalyticsService:
                 }
             )
 
-        role_priority = {"DIRETORIA_CABECA": 0, "SUPERINTENDENCIA_TITULAR": 1, "GERENCIA_UNIDADE": 2}
+        role_priority = {
+            OrganizationalRole.CONSELHO_SUPERIOR.value: 0,
+            OrganizationalRole.DIRETORIA_CABECA.value: 1,
+            OrganizationalRole.DIRETORIA_VINCULADA.value: 2,
+            OrganizationalRole.SUPERINTENDENCIA_TITULAR.value: 3,
+            OrganizationalRole.GERENCIA_UNIDADE.value: 4,
+        }
+
         for seg_name, seg_obj in by_segment.items():
             for area_name, area_obj in seg_obj["areas"].items():
                 area_obj["unidades"].sort(
                     key=lambda u: (role_priority.get(u["role"], 9), -u["headcount"], u["unidade_des"])
                 )
-            
-            # Ordenação inteligente da árvore: Gabinetes e Diretorias Nível 2 no topo (0), depois Superintendências (1)
+
             sorted_areas = dict(
                 sorted(
                     seg_obj["areas"].items(),
