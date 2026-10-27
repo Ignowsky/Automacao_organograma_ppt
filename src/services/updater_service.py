@@ -17,13 +17,6 @@ from src.infrastructure.databricks_repository import parse_reference_date_info
 
 
 class PresentationUpdaterService:
-    """
-    Orquestrador central com suporte a:
-    - Exclusão automática imediata (REMOVE) para qualquer unidade com Headcount 0 (extinta);
-    - Posicionamento correto por gramática de 5 níveis (Superintendências e Diretorias Nível 2);
-    - Recálculo em Cascata e Preview 16:9 atualizado.
-    """
-
     def __init__(self, mapping_json_path: str = "config/slide_mapping.json") -> None:
         if not os.path.exists(mapping_json_path):
             raise FileNotFoundError(f"Arquivo de mapeamento não encontrado: {mapping_json_path}")
@@ -147,7 +140,7 @@ class PresentationUpdaterService:
             total_company = max(0, total_company + delta_val)
             cascaded_company_delta += delta_val
 
-        # Auto-exclusão imediata para todas as unidades mapeadas cujo headcount seja 0 no Databricks/Excel
+        # REGRA DE OURO: Auto-exclusão imediata para qualquer unidade mapeada cujo headcount seja 0
         for u in self.config.get("unit_boxes", []):
             s_i = int(u["slide_index"])
             u_tuple = (u["segmento"], u["area"], u["unidade"])
@@ -204,10 +197,6 @@ class PresentationUpdaterService:
                         u_rule = unit_lookup[(s_idx, shape_key)]
                         canonical_key = f"{u_rule['name_path']} | {u_rule['badge_path']}"
                         removed_unit_keys[(s_idx, canonical_key)] = ov
-                        u_tuple = (u_rule["segmento"], u_rule["area"], u_rule["unidade"])
-                        prev_hc = unit_totals.get(u_tuple, 0)
-                        unit_totals[u_tuple] = 0
-                        _apply_cascade_delta(u_rule["segmento"], u_rule["area"], -prev_hc)
                     continue
 
                 if (s_idx, shape_key) in unit_lookup:
@@ -236,7 +225,7 @@ class PresentationUpdaterService:
         regular_entries: List[ChangeLogEntry] = []
         date_entries: List[ChangeLogEntry] = []
 
-        # 1. Datas Base nos 11 Slides
+        # 1. Datas Base
         for d in self.config.get("date_shapes", []):
             sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[d["slide_index"]], d["shape_path"])
             if sh:
@@ -246,12 +235,12 @@ class PresentationUpdaterService:
                     ChangeLogEntry(
                         d["slide_index"] + 1,
                         str(d["shape_path"]),
-                        "Tag de Competência (Data Base)",
+                        "Tag de Competência",
                         TargetType.REFERENCE_DATE,
                         old_v,
                         new_v,
                         st,
-                        "Tag de competência nos slides",
+                        "Tag de competência",
                     )
                 )
 
@@ -260,37 +249,21 @@ class PresentationUpdaterService:
             sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[c["slide_index"]], c["shape_path"])
             if sh:
                 old_v, new_v = PptxSurgicalEngine.update_numeric_badge(sh, total_company)
-                if cascaded_company_delta != 0:
-                    sign = "+" if cascaded_company_delta > 0 else ""
-                    msg = f"🔄 Recalculado em cascata: Base ({base_total_company}) {sign}{cascaded_company_delta} = {total_company}"
-                    cascade_entries.append(
-                        ChangeLogEntry(
-                            c["slide_index"] + 1,
-                            str(c["shape_path"]),
-                            "Total Geral CNI",
-                            TargetType.HEADCOUNT_COMPANY_TOTAL,
-                            f"Total [{old_v}]",
-                            f"Total [{new_v}]",
-                            UpdateStatus.UPDATED_NUMBER,
-                            msg,
-                        )
+                st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
+                regular_entries.append(
+                    ChangeLogEntry(
+                        c["slide_index"] + 1,
+                        str(c["shape_path"]),
+                        "Total Geral CNI",
+                        TargetType.HEADCOUNT_COMPANY_TOTAL,
+                        f"Total [{old_v}]",
+                        f"Total [{new_v}]",
+                        st,
+                        "Total Geral da Confederação",
                     )
-                else:
-                    st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
-                    regular_entries.append(
-                        ChangeLogEntry(
-                            c["slide_index"] + 1,
-                            str(c["shape_path"]),
-                            "Total Geral CNI",
-                            TargetType.HEADCOUNT_COMPANY_TOTAL,
-                            f"Total [{old_v}]",
-                            f"Total [{new_v}]",
-                            st,
-                            "Total Geral da Confederação",
-                        )
-                    )
+                )
 
-        # 3. Totais de Diretoria / Segmento
+        # 3. Totais de Diretoria
         for s in self.config.get("segment_total_shapes", []):
             s_idx = int(s["slide_index"])
             s_path = str(s["shape_path"]).strip()
@@ -298,36 +271,19 @@ class PresentationUpdaterService:
             sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[s_idx], s_path)
             if sh and seg_name in seg_totals:
                 old_v, new_v = PptxSurgicalEngine.update_numeric_badge(sh, seg_totals[seg_name])
-                seg_delta = cascaded_seg_deltas.get(seg_name, 0)
-                if seg_delta != 0:
-                    sign = "+" if seg_delta > 0 else ""
-                    base_s = base_seg_totals.get(seg_name, 0)
-                    cascade_entries.append(
-                        ChangeLogEntry(
-                            s_idx + 1,
-                            s_path,
-                            f"Total Diretoria · {seg_name}",
-                            TargetType.HEADCOUNT_SEGMENT_TOTAL,
-                            f"Total [{old_v}]",
-                            f"Total [{new_v}]",
-                            UpdateStatus.UPDATED_NUMBER,
-                            f"🔄 Recalculado em cascata: Base ({base_s}) {sign}{seg_delta} = {seg_totals[seg_name]}",
-                        )
+                st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
+                regular_entries.append(
+                    ChangeLogEntry(
+                        s_idx + 1,
+                        s_path,
+                        f"Total Diretoria · {seg_name}",
+                        TargetType.HEADCOUNT_SEGMENT_TOTAL,
+                        f"Total [{old_v}]",
+                        f"Total [{new_v}]",
+                        st,
+                        f"Total Diretoria ({seg_name})",
                     )
-                else:
-                    st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
-                    regular_entries.append(
-                        ChangeLogEntry(
-                            s_idx + 1,
-                            s_path,
-                            f"Total Diretoria · {seg_name}",
-                            TargetType.HEADCOUNT_SEGMENT_TOTAL,
-                            f"Total [{old_v}]",
-                            f"Total [{new_v}]",
-                            st,
-                            f"Total consolidado da Diretoria ({seg_name})",
-                        )
-                    )
+                )
 
         # 4. Subtotais de Superintendência
         for a in self.config.get("area_subtotal_shapes", []):
@@ -338,39 +294,22 @@ class PresentationUpdaterService:
             sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[s_idx], a_path)
             if sh:
                 val = area_totals.get((seg_name, area_name), 0)
-                base_a = base_area_totals.get((seg_name, area_name), 0)
-                area_delta = cascaded_area_deltas.get((seg_name, area_name), 0)
                 old_v, new_v = PptxSurgicalEngine.update_numeric_badge(sh, val)
-                if area_delta != 0:
-                    sign = "+" if area_delta > 0 else ""
-                    cascade_entries.append(
-                        ChangeLogEntry(
-                            s_idx + 1,
-                            a_path,
-                            f"Subtotal Superintendência · {area_name}",
-                            TargetType.HEADCOUNT_AREA_SUBTOTAL,
-                            f"Subtotal [{old_v}]",
-                            f"Subtotal [{new_v}]",
-                            UpdateStatus.UPDATED_NUMBER,
-                            f"🔄 Recalculado em cascata: Base ({base_a}) {sign}{area_delta} = {val}",
-                        )
+                st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
+                regular_entries.append(
+                    ChangeLogEntry(
+                        s_idx + 1,
+                        a_path,
+                        f"Subtotal Superintendência · {area_name}",
+                        TargetType.HEADCOUNT_AREA_SUBTOTAL,
+                        f"Subtotal [{old_v}]",
+                        f"Subtotal [{new_v}]",
+                        st,
+                        f"Subtotal Superintendência · {area_name}",
                     )
-                else:
-                    st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
-                    regular_entries.append(
-                        ChangeLogEntry(
-                            s_idx + 1,
-                            a_path,
-                            f"Subtotal Superintendência · {area_name}",
-                            TargetType.HEADCOUNT_AREA_SUBTOTAL,
-                            f"Subtotal [{old_v}]",
-                            f"Subtotal [{new_v}]",
-                            st,
-                            f"Subtotal da Superintendência · {area_name}",
-                        )
-                    )
+                )
 
-        # 5. Caixas de Unidades Existentes (Excluindo automaticamente se HC = 0)
+        # 5. Unidades Existentes (Excluindo se HC = 0)
         for u in self.config.get("unit_boxes", []):
             s_idx = int(u["slide_index"])
             sl = prs.slides[s_idx]
@@ -387,10 +326,10 @@ class PresentationUpdaterService:
                         canonical_key,
                         u["unidade"],
                         TargetType.HEADCOUNT_UNIT,
-                        f"{old_txt} [HC > 0]",
+                        f"{old_txt} [HC = 0]",
                         "(Área Zerada Excluída Automaticamente) [0]",
                         UpdateStatus.REMOVED_BOX,
-                        f"🗑️ Área sem contratos (HC = 0) excluída automaticamente e coluna compactada · {u['segmento']} › {u['area']}",
+                        f"🗑️ Área sem headcount (0) excluída automaticamente do slide e coluna compactada · {u['segmento']} › {u['area']}",
                     )
                 )
                 continue
@@ -440,7 +379,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 6. Novas Caixas Clonadas (Respeitando alinhamento de Superintendências e Diretorias Nível 2)
+        # 6. Novas Caixas Clonadas (Com alinhamento correto para Superintendências)
         for cl in self.config.get("cloned_new_boxes", []):
             s_idx = int(cl["slide_index"])
             sl = prs.slides[s_idx]
@@ -470,35 +409,6 @@ class PresentationUpdaterService:
                     f"Nova estrutura alinhada (tracejada) · {cl['segmento']} › {cl['area']}",
                 )
             )
-
-        # 6B. Adicionadas via Web (ADD)
-        for add_req in custom_added_boxes:
-            s_idx = int(add_req["slide_index"])
-            sl = prs.slides[s_idx]
-            try:
-                role_code, _ = classify_organizational_node(add_req["segmento"], add_req["area"], add_req["new_area_name"])
-                cloned_info = PptxSurgicalEngine.clone_unit_group_in_column(
-                    slide=sl,
-                    template_group_id=str(add_req["template_shape_key"]),
-                    new_area_name=add_req["new_area_name"],
-                    new_headcount=add_req["new_headcount"],
-                    manager_placeholder=add_req["new_manager"],
-                    role_code=role_code,
-                )
-                manual_entries.append(
-                    ChangeLogEntry(
-                        s_idx + 1,
-                        f"{cloned_info['name_path']} | {cloned_info['badge_path']}",
-                        add_req["new_area_name"],
-                        TargetType.HEADCOUNT_UNIT,
-                        "(Adicionada via Web)",
-                        f"{add_req['new_area_name']} [{add_req['new_headcount']}]",
-                        UpdateStatus.CLONED_NEW_BOX,
-                        f"➕ Nova caixa tracejada criada · {add_req['segmento']} › {add_req['area']}",
-                    )
-                )
-            except Exception:
-                pass
 
         report.changes = manual_entries + cascade_entries + regular_entries + date_entries
 

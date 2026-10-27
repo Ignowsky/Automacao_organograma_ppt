@@ -55,6 +55,7 @@ class PeopleAnalyticsService:
     ) -> Dict[str, Any]:
         cls._load_mapping_metadata()
 
+        # Ignora automaticamente na árvore qualquer unidade com Headcount 0 (extinta / zerada)
         normalized_records = [
             HeadcountRecord(
                 segmento_des=cls._normalize_segmento(r.segmento_des, r.unidade_des),
@@ -64,7 +65,7 @@ class PeopleAnalyticsService:
                 ano_mes_referencia=r.ano_mes_referencia,
             )
             for r in records
-            if r.headcount > 0  # Ignora áreas zeradas na árvore de headcount
+            if r.headcount > 0
         ]
 
         filtered = normalized_records
