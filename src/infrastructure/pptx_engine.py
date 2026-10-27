@@ -316,7 +316,7 @@ class PptxSurgicalEngine:
         cloned_group: GroupShape = slide.shapes[-1]
 
         target_left = left_override if left_override is not None else col_left
-        if role_code in ("SUPERINTENDENCIA_TITULAR", "DIRETORIA_VINCULADA"):
+        if left_override is None and role_code in ("SUPERINTENDENCIA_TITULAR", "DIRETORIA_VINCULADA"):
             target_left = col_left
 
         if top_override is not None:
@@ -363,11 +363,60 @@ class PptxSurgicalEngine:
         }
 
     @classmethod
+    def remove_shapes_with_backdrop(cls, slide: Slide, paths: List[str]) -> int:
+        """Remove shapes (por caminho) e os shapes SEM texto que formam o fundo dessa caixa
+        (retângulo/borda cujo centro cai dentro da área ocupada pelos shapes removidos)."""
+        shapes = [cls.find_shape_by_path(slide, p) for p in paths]
+        shapes = [sh for sh in shapes if sh is not None]
+        if not shapes:
+            return 0
+        first_parts = str(paths[0]).strip().split(".")
+        if len(first_parts) > 1:
+            parent = cls.find_shape_by_path(slide, ".".join(first_parts[:-1]))
+            container = parent.shapes if parent is not None and hasattr(parent, "shapes") else None
+        else:
+            container = slide.shapes
+
+        left = min(int(sh.left) for sh in shapes)
+        top = min(int(sh.top) for sh in shapes)
+        right = max(int(sh.left) + int(sh.width) for sh in shapes)
+        bottom = max(int(sh.top) + int(sh.height) for sh in shapes)
+
+        removed = 0
+        for sh in shapes:
+            el = sh.element
+            if el.getparent() is not None:
+                el.getparent().remove(el)
+                removed += 1
+
+        if container is not None:
+            tol = 20000
+            for sib in list(container):
+                if isinstance(sib, GroupShape):
+                    continue
+                if getattr(sib, "has_text_frame", False) and sib.text_frame.text.strip():
+                    continue
+                try:
+                    cx = int(sib.left) + int(sib.width) / 2
+                    cy = int(sib.top) + int(sib.height) / 2
+                    area_sib = int(sib.width) * int(sib.height)
+                except Exception:
+                    continue
+                area_union = max(1, (right - left) * (bottom - top))
+                if (left - tol <= cx <= right + tol and top - tol <= cy <= bottom + tol
+                        and area_sib <= area_union * 1.6):
+                    el = sib.element
+                    if el.getparent() is not None:
+                        el.getparent().remove(el)
+        return removed
+
+    @classmethod
     def remove_unit_group_in_column(
         cls,
         slide: Slide,
         shape_key: str,
         compact_column: bool = True,
+        protected_paths: Optional[set] = None,
     ) -> Optional[Dict[str, Any]]:
         first_part = shape_key.split("|")[0].strip()
         parts = [p.strip() for p in first_part.split(".") if p.strip().isdigit()]
@@ -388,6 +437,25 @@ class PptxSurgicalEngine:
                     old_hc = int(float(badge_sh.text_frame.text.strip()))
                 except ValueError:
                     old_hc = 0
+
+        # Grupo-contêiner: se o grupo de topo guarda OUTROS shapes mapeados (subtotais, outras
+        # caixas...), remover o grupo inteiro apagaria dados alheios. Remove só esta caixa.
+        if len(parts) == 2 and protected_paths and "|" in shape_key:
+            own = {name_p, badge_p}
+            others = {p for p in protected_paths if p.startswith(parts[0] + ".") and p not in own}
+            if others:
+                n = cls.remove_shapes_with_backdrop(slide, [name_p, badge_p])
+                if n:
+                    return {
+                        "removed_root_id": parts[0],
+                        "old_text": old_text,
+                        "old_hc": old_hc,
+                        "left": 0,
+                        "top": 0,
+                        "shifted_count": 0,
+                        "partial_removal": True,
+                    }
+                return None
 
         if len(parts) >= 3:
             sub_group_path = ".".join(parts[:-1])
