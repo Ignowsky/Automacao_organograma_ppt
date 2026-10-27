@@ -21,7 +21,7 @@
               medium: '#5876AC',
               light: '#8FA3C7',
               lighter: '#C2D1E8',
-              lightest: '#F1F5F9',
+              lightest: '#E4ECF5',
               accent: '#0095D9'
             },
             sesi: { DEFAULT: '#008542', light: '#52AE32' },
@@ -40,8 +40,8 @@
       --portal-pure: #164194;
       --portal-medium: #5876AC;
       --portal-light: #8FA3C7;
-      --portal-lighter: #CBD5E1;
-      --portal-lightest: #F8FAFC;
+      --portal-lighter: #C2D1E8;
+      --portal-lightest: #E4ECF5;
     }
 
     *, *::before, *::after {
@@ -68,130 +68,84 @@
       background-color: var(--portal-pure) !important;
     }
 
-    /* Botões Corporativos Limpos */
+    /* Botões Padrão CNI Design System */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
       font-family: 'Inter', sans-serif;
-      font-weight: 500;
+      font-weight: 600;
       font-size: 0.8125rem;
       line-height: 1.25rem;
-      padding: 0.5rem 1rem;
-      border-radius: 0.375rem;
-      transition: all 0.15s ease;
+      padding: 0.55rem 1.15rem;
+      border-radius: 0.5rem;
+      transition: all 0.2s ease;
       cursor: pointer;
       border: 1px solid transparent;
       text-decoration: none;
       white-space: nowrap;
     }
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.6;
       cursor: not-allowed;
     }
     .btn.portal-btn.primary {
       background-color: var(--portal-pure);
       color: #FFFFFF;
+      box-shadow: 0 1px 3px rgba(22, 65, 148, 0.25);
     }
     .btn.portal-btn.primary:hover:not(:disabled) {
       background-color: var(--portal-dark);
+      box-shadow: 0 4px 10px rgba(26, 60, 111, 0.3);
     }
     .btn.portal-btn.primary.icon-left::before {
       content: "⚡";
-      font-size: 0.8rem;
+      font-size: 0.85rem;
     }
     .btn.portal-btn.primary.icon-right::after {
       content: "➔";
-      font-size: 0.8rem;
+      font-size: 0.85rem;
     }
     .btn.secondary {
-      background-color: #FFFFFF;
-      color: #334155;
-      border-color: #CBD5E1;
+      background-color: var(--portal-lightest);
+      color: var(--portal-dark);
+      border-color: var(--portal-lighter);
     }
     .btn.secondary:hover:not(:disabled) {
-      background-color: #F1F5F9;
-      color: #0F172A;
-    }
-    .btn.borderless {
-      background: transparent;
-      border: none;
-      box-shadow: none;
+      background-color: var(--portal-lighter);
+      color: var(--portal-darker);
     }
     .btn-small {
       font-size: 0.75rem;
-      padding: 0.3rem 0.65rem;
-      border-radius: 0.25rem;
-    }
-
-    /* Sistema de Notificações Toast no Canto Superior Direito (Clean) */
-    #toast-container {
-      position: fixed;
-      top: 1.25rem;
-      right: 1.25rem;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      pointer-events: none;
-    }
-    .toast-item {
-      pointer-events: auto;
-      background: #FFFFFF;
-      border-left: 4px solid var(--portal-pure);
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      padding: 0.375rem 0.75rem;
       border-radius: 0.375rem;
-      padding: 0.75rem 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      min-width: 300px;
-      max-width: 420px;
-      font-size: 0.8125rem;
-      animation: slideInRight 0.2s ease-out forwards;
     }
-    @keyframes slideInRight {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+    .mt-stack-xxs {
+      margin-top: 0.5rem;
     }
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #EF4444;
-      color: #FFFFFF;
-      font-size: 0.6rem;
-      font-weight: 700;
-      padding: 0.05rem 0.35rem;
-      border-radius: 9999px;
-      line-height: 1;
-      vertical-align: top;
-      margin-left: -0.35rem;
-      margin-right: 0.3rem;
-    }
-    .btn-bell::before {
-      content: "🔔";
-      font-size: 0.85rem;
-    }
-
-    /* Barra de Progresso Clean */
+    /* Barra de Progresso CNI Design System */
     .progress-bar {
       position: relative;
       width: 100%;
-      height: 1.2rem;
-      background-color: #F1F5F9;
-      border: 1px solid #CBD5E1;
-      border-radius: 0.25rem;
+      height: 1.4rem;
+      background-color: var(--portal-lightest);
+      border: 1px solid var(--portal-lighter);
       overflow: hidden;
+    }
+    .progress-pill {
+      border-radius: 9999px;
+    }
+    .progress-bar-shadow {
+      box-shadow: inset 0 1px 3px rgba(8, 21, 41, 0.15);
     }
     .progress-bar .progress {
       display: block;
       height: 100%;
       width: 0%;
-      border-radius: 0.2rem;
-      transition: width 0.3s ease;
+      border-radius: 9999px;
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .progress-bar .progress-counter {
       position: absolute;
@@ -199,100 +153,138 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.7rem;
-      font-weight: 700;
-      color: #1E293B;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #FFFFFF;
       z-index: 10;
+      text-shadow: 0 1px 3px rgba(8, 21, 41, 0.85);
+      letter-spacing: 0.03em;
     }
 
-    /* Breadcrumb Corporativo Limpo */
+    /* Breadcrumb Funcional CNI Design System */
+    .my-stack-micro {
+      margin-top: 0.25rem;
+      margin-bottom: 0.25rem;
+    }
+    .px-inline-xxxs {
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+    }
     .cni-breadcrumb {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.45rem;
       list-style: none;
-      font-size: 0.775rem;
-      color: #64748B;
+      font-size: 0.8rem;
+      color: var(--portal-medium);
     }
     .cni-breadcrumb li {
       display: inline-flex;
       align-items: center;
-      gap: 0.2rem;
+      gap: 0.25rem;
     }
     .cni-breadcrumb a {
       color: var(--portal-pure);
-      font-weight: 500;
+      font-weight: 600;
       text-decoration: none;
-      padding: 0.15rem 0.35rem;
-      border-radius: 0.25rem;
-      transition: background 0.1s;
+      padding: 0.2rem 0.45rem;
+      border-radius: 0.375rem;
+      transition: all 0.15s ease;
+      cursor: pointer;
     }
     .cni-breadcrumb a:hover {
-      background-color: #F1F5F9;
+      background-color: var(--portal-lightest);
+      color: var(--portal-dark);
     }
     .cni-breadcrumb .breadcrumb-active {
-      color: #0F172A;
-      font-weight: 600;
+      color: var(--portal-darkest);
+      font-weight: 700;
       background-color: #FFFFFF;
-      border: 1px solid #CBD5E1;
-      padding: 0.15rem 0.5rem;
+      border: 1px solid var(--portal-lighter);
+      padding: 0.2rem 0.6rem;
       border-radius: 9999px;
+      box-shadow: 0 1px 2px rgba(8, 21, 41, 0.05);
+    }
+    .house-icon::before {
+      content: "🏠";
+      font-style: normal;
+      font-size: 0.9rem;
+    }
+    .arrow-c-right-icon::before {
+      content: "›";
+      font-style: normal;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--portal-light);
+    }
+    .nav-circle-icon::before {
+      content: "•••";
+      font-style: normal;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      color: var(--portal-pure);
     }
 
-    /* Palco 16:9 Clean */
+    /* Palco 16:9 de Pré-Visualização Interativa do PowerPoint */
     .ppt-slide-stage {
       position: relative;
       width: 100%;
       aspect-ratio: 16 / 9;
-      background: #FFFFFF;
-      border: 1px solid #CBD5E1;
-      border-radius: 0.5rem;
+      background: linear-gradient(180deg, #FFFFFF 0%, #F4F7FB 100%);
+      border: 2px solid var(--portal-lighter);
+      border-radius: 0.75rem;
       overflow: hidden;
-      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+      box-shadow: 0 8px 24px rgba(8, 21, 41, 0.08);
     }
     .ppt-el-unit {
       position: absolute;
       background: #FFFFFF;
       border: 1px solid #CBD5E1;
-      border-left: 3px solid var(--portal-pure);
-      border-radius: 0.25rem;
-      padding: 2px 4px;
+      border-left: 3.5px solid var(--portal-pure);
+      border-radius: 0.3rem;
+      padding: 2px 5px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 2px;
+      gap: 3px;
       cursor: pointer;
-      transition: all 0.1s ease;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
       overflow: hidden;
       z-index: 10;
     }
     .ppt-el-unit:hover, .ppt-el-unit.active-selected {
       border-color: var(--portal-pure);
-      background-color: #F8FAFC;
-      box-shadow: 0 2px 8px rgba(22, 65, 148, 0.15);
+      background-color: var(--portal-lightest);
+      transform: scale(1.02);
       z-index: 30;
+      box-shadow: 0 4px 12px rgba(22, 65, 148, 0.22);
     }
     .ppt-el-badge {
       position: absolute;
       background-color: var(--portal-dark);
       color: #FFFFFF;
-      font-weight: 700;
-      font-size: 9px;
+      font-weight: 800;
+      font-size: 10px;
       border-radius: 9999px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       z-index: 20;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+      transition: transform 0.15s ease;
+    }
+    .ppt-el-badge:hover {
+      transform: scale(1.12);
+      background-color: var(--portal-pure);
     }
     .ppt-el-text {
       position: absolute;
       font-size: 8px;
-      font-weight: 600;
-      color: #334155;
+      font-weight: 700;
+      color: var(--portal-dark);
       display: flex;
       align-items: center;
       overflow: hidden;
@@ -304,12 +296,12 @@
     .ppt-el-inst {
       position: absolute;
       background: #F8FAFC;
-      border: 1px dashed #94A3B8;
-      border-radius: 0.2rem;
-      padding: 1px 3px;
+      border: 1px dashed var(--portal-medium);
+      border-radius: 0.25rem;
+      padding: 1px 4px;
       font-size: 8px;
-      font-weight: 500;
-      color: #334155;
+      font-weight: 600;
+      color: var(--portal-dark);
       display: flex;
       align-items: center;
       overflow: hidden;
@@ -317,141 +309,164 @@
     }
   </style>
 </head>
-<body class="bg-[#F8FAFC] text-slate-800 min-h-screen flex flex-col font-sans">
-
-  <!-- CONTAINER DE TOASTS (Notificações discretas no canto superior direito) -->
-  <div id="toast-container"></div>
+<body class="bg-[#E4ECF5]/40 text-slate-800 min-h-screen flex flex-col font-sans">
 
   <!-- MODAL DE LOGIN INSTITUCIONAL -->
-  <div id="login-overlay" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-sm w-full overflow-hidden">
-      <div class="h-1 w-full bg-cni-pure"></div>
-      <div class="p-6 space-y-5">
+  <div id="login-overlay" class="fixed inset-0 z-50 bg-cni-darkest/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl border border-cni-lighter max-w-md w-full overflow-hidden">
+      <div class="h-1.5 w-full flex">
+        <div class="w-1/4 bg-[#164194]"></div>
+        <div class="w-1/4 bg-[#008542]"></div>
+        <div class="w-1/4 bg-[#F37021]"></div>
+        <div class="w-1/4 bg-[#0095D9]"></div>
+      </div>
+      <div class="p-8 space-y-6">
         <div class="text-center space-y-1">
-          <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Acesso Restrito</span>
-          <h2 class="text-xl font-bold text-slate-900">Sistema Indústria</h2>
-          <p class="text-xs text-slate-500">People Analytics & Governança</p>
+          <div class="inline-flex items-center gap-2 bg-cni-lightest border border-cni-lighter px-3 py-1 rounded-full">
+            <span class="w-2 h-2 rounded-full bg-cni-pure"></span>
+            <span class="text-[10px] font-extrabold uppercase tracking-widest text-cni-dark">
+              Acesso Restrito · SDH & People Analytics
+            </span>
+          </div>
+          <h2 class="text-2xl font-extrabold text-cni-dark pt-2">Sistema Indústria</h2>
+          <p class="text-xs text-slate-500">Observatório de Estrutura Organizacional & Automação PPTX</p>
         </div>
 
-        <form onsubmit="handleLogin(event)" class="space-y-3.5">
+        <form onsubmit="handleLogin(event)" class="space-y-4">
           <div>
-            <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Utilizador</label>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Utilizador</label>
             <input id="login-user" type="text" required autocomplete="username" placeholder="Ex: admin.sdh"
-                   class="w-full border border-slate-300 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-cni-pure focus:outline-none" />
+                   class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-cni-pure focus:outline-none" />
           </div>
           <div>
-            <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Palavra-passe</label>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Palavra-passe</label>
             <input id="login-pass" type="password" required autocomplete="current-password" placeholder="••••••••••••"
-                   class="w-full border border-slate-300 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-cni-pure focus:outline-none" />
+                   class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-cni-pure focus:outline-none" />
           </div>
-          <div id="login-error" class="hidden text-xs text-rose-600 font-medium text-center bg-rose-50 border border-rose-200 p-2 rounded-md"></div>
-          <button id="btn-login-submit" type="submit" class="w-full btn portal-btn primary py-2.5 text-xs font-semibold">
-            Entrar no Portal
+          <div id="login-error" class="hidden text-xs text-rose-600 font-semibold text-center bg-rose-50 border border-rose-200 p-2.5 rounded-lg"></div>
+          <button id="btn-login-submit" type="submit" class="w-full btn portal-btn primary icon-right py-3">
+            Autenticar e Entrar no Portal
           </button>
         </form>
+
+        <div class="text-center border-t border-slate-100 pt-4">
+          <span class="text-[11px] text-slate-400">CNI · SESI · SENAI · IEL — Governança de Dados</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- MODAL DE UPLOAD DE BASE -->
-  <div id="data-upload-modal" class="fixed inset-0 z-40 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
-      <div class="bg-slate-900 px-5 py-3 text-white flex justify-between items-center">
+  <!-- MODAL DE UPLOAD MANUAL DE BASE (.XLSX / .CSV) -->
+  <div id="data-upload-modal" class="fixed inset-0 z-40 bg-cni-darkest/75 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl border border-cni-lighter max-w-lg w-full overflow-hidden">
+      <div class="bg-cni-dark px-6 py-4 text-white flex justify-between items-center">
         <div>
-          <span class="text-[9px] uppercase tracking-widest text-slate-400 font-bold block">Contingência</span>
-          <h3 class="text-sm font-bold">Subir Extração do Databricks</h3>
+          <span class="text-[10px] uppercase tracking-widest text-cni-lighter font-bold block">Contingência / Atualização Rápida</span>
+          <h3 class="text-base font-bold">Carregar Nova Extração do Databricks (.xlsx ou .csv)</h3>
         </div>
-        <button type="button" onclick="toggleDataUploadModal(false)" class="text-slate-400 hover:text-white font-bold">✕</button>
+        <button type="button" onclick="toggleDataUploadModal(false)" class="text-white/70 hover:text-white text-lg font-bold">✕</button>
       </div>
 
-      <form onsubmit="handleCustomDataUpload(event)" class="p-5 space-y-4">
-        <div class="bg-slate-50 border border-slate-200 rounded-md p-3 text-xs text-slate-600 space-y-1">
-          <p class="font-semibold text-slate-900">Formatos aceitos: <b>.xlsx</b> ou <b>.csv</b></p>
-          <p class="text-[11px] text-slate-500">O sistema detectará automaticamente a competência e os totais de headcount.</p>
+      <form onsubmit="handleCustomDataUpload(event)" class="p-6 space-y-4">
+        <div class="bg-cni-lightest/60 border border-cni-lighter rounded-lg p-3.5 text-xs text-slate-700 space-y-1.5">
+          <div class="font-bold text-cni-dark">Leitura Dinâmica de Data:</div>
+          <p>Anexe a planilha extraída do Databricks (<b>.xlsx</b> ou <b>.csv</b>). O portal detecta automaticamente a data preenchida nas células.</p>
+          <p class="text-[11px] text-slate-500 font-mono">Colunas: ANO_MES_REFERENCIA (ou Ano_Mes), SEGMENTO_DES, AREA_DES, UNIDADE_DES, COUNT(CODIGO_CONTRATO)</p>
         </div>
 
-        <div class="border border-dashed border-slate-300 rounded-lg p-3 bg-slate-50">
+        <div class="border-2 border-dashed border-cni-medium/40 rounded-xl p-4 bg-slate-50">
+          <label class="block text-xs font-bold uppercase text-cni-dark mb-2">Selecione o arquivo (.xlsx ou .csv)</label>
           <input id="custom-data-file-input" type="file" accept=".xlsx,.xls,.csv" required
-                 class="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cni-pure file:text-white hover:file:bg-cni-dark cursor-pointer" />
+                 class="w-full text-xs text-slate-700 file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cni-pure file:text-white hover:file:bg-cni-dark cursor-pointer focus:outline-none" />
         </div>
 
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="toggleDataUploadModal(false)" class="btn secondary btn-small">Cancelar</button>
-          <button id="btn-upload-data-submit" type="submit" class="btn portal-btn primary btn-small">Carregar Base</button>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" onclick="toggleDataUploadModal(false)" class="btn secondary btn-small">
+            Cancelar
+          </button>
+          <button id="btn-upload-data-submit" type="submit" class="btn portal-btn primary">
+            Carregar e Atualizar Portal
+          </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Faixa Superior Multi-Marca -->
-  <div class="h-1 w-full flex">
-    <div class="w-1/4 bg-[#164194]"></div>
-    <div class="w-1/4 bg-[#008542]"></div>
-    <div class="w-1/4 bg-[#F37021]"></div>
-    <div class="w-1/4 bg-[#0095D9]"></div>
+  <!-- Faixa Institucional Superior Multi-Marca -->
+  <div class="h-1.5 w-full flex">
+    <div class="w-1/4 bg-[#164194]" title="CNI"></div>
+    <div class="w-1/4 bg-[#008542]" title="SESI"></div>
+    <div class="w-1/4 bg-[#F37021]" title="SENAI"></div>
+    <div class="w-1/4 bg-[#0095D9]" title="IEL"></div>
   </div>
 
-  <!-- Cabeçalho Clean -->
-  <header class="bg-slate-900 text-white border-b border-slate-800">
-    <div class="max-w-[1400px] mx-auto px-6 py-3.5 flex flex-col lg:flex-row justify-between items-center gap-3">
-      <div class="flex items-center gap-3 cursor-pointer" onclick="navigateHome()">
-        <div class="bg-white text-cni-pure font-bold px-3 py-1.5 rounded text-xs tracking-wider">
-          SISTEMA INDÚSTRIA
+  <!-- Cabeçalho Padrão Sistema Indústria -->
+  <header class="bg-cni-dark text-white shadow-lg">
+    <div class="max-w-[1480px] mx-auto px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-4 cursor-pointer" onclick="navigateHome()" title="Voltar ao Início (Visão Completa)">
+        <div class="bg-white text-cni-pure font-extrabold px-3.5 py-2 rounded shadow-inner flex flex-col items-center leading-none">
+          <span class="text-[10px] tracking-widest text-slate-500">SISTEMA</span>
+          <span class="text-sm tracking-tight text-cni-dark">INDÚSTRIA</span>
         </div>
-        <div class="border-l border-slate-700 pl-3">
-          <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">People Analytics & Data Engineering</div>
-          <h1 class="text-base font-bold text-white tracking-tight">Observatório de Estrutura Organizacional</h1>
+        <div class="border-l border-white/20 pl-4">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-bold uppercase tracking-widest text-cni-lighter">People Analytics & Data Engineering</span>
+            <span class="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white/80">CNI · SESI · SENAI · IEL</span>
+          </div>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight mt-0.5">
+            Observatório de Estrutura Organizacional & Automação PPTX
+          </h1>
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2 bg-slate-800/80 p-1.5 rounded-md border border-slate-700">
-        <div class="flex items-center gap-1.5 px-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span id="datasource-badge" class="text-xs text-slate-300 font-medium">Conectado</span>
+      <div class="flex flex-wrap items-center gap-2.5 bg-cni-darker/80 p-2 rounded-lg border border-white/10">
+        <div class="flex items-center gap-2 px-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="datasource-badge" class="text-xs font-medium text-slate-200">Conectando...</span>
         </div>
-        <div class="flex items-center bg-slate-900 rounded px-2 py-0.5 border border-slate-700">
-          <span class="text-[10px] uppercase text-slate-400 mr-1.5">Ref:</span>
+        <div class="flex items-center bg-cni-darkest/60 rounded border border-white/15 px-2.5 py-1">
+          <span class="text-[10px] uppercase text-slate-300 mr-2 font-semibold">Ref:</span>
           <input id="ref-date-input" type="text" value="" placeholder="--/----" onchange="onManualRefDateChange()"
-                 class="bg-transparent text-xs font-mono text-white w-20 focus:outline-none text-center" />
+                 class="bg-transparent text-xs font-mono text-white w-24 focus:outline-none text-center" />
         </div>
-        
-        <!-- Botão de Notificações com Badge -->
-        <div>
-          <button type="button" onclick="showToast('Notificações', 'Nenhum alerta pendente. Sincronização em dia.')" class="btn secondary borderless btn-bell icon icon-left py-1 px-2 text-white"></button>
-          <span class="badge"><span class="badge-content" id="session-badge-count">0</span></span>
-        </div>
+        <button type="button" onclick="loadHeadcount(true)" title="Recarregar dados"
+                class="btn secondary btn-small">
+          Sincronizar
+        </button>
+        <button id="btn-open-data-modal" type="button" onclick="toggleDataUploadModal(true)"
+                class="btn portal-btn primary btn-small">
+          <span>📤</span> Subir Base (.xlsx/.csv)
+        </button>
 
-        <button type="button" onclick="loadHeadcount(true)" class="btn secondary btn-small">Sincronizar</button>
-        <button id="btn-open-data-modal" type="button" onclick="toggleDataUploadModal(true)" class="btn portal-btn primary btn-small">Subir Base</button>
-
-        <div id="user-badge-box" class="hidden flex items-center gap-2 border-l border-slate-700 pl-2.5 ml-1">
-          <span id="logged-user-label" class="text-xs font-medium text-slate-300"></span>
-          <button type="button" onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 text-[10px] font-semibold px-2 py-0.5 rounded">Sair</button>
+        <div id="user-badge-box" class="hidden flex items-center gap-2 border-l border-white/20 pl-3 ml-1">
+          <span id="logged-user-label" class="text-xs font-bold text-cni-lighter"></span>
+          <button type="button" onclick="handleLogout()" title="Terminar Sessão"
+                  class="bg-rose-600/80 hover:bg-rose-600 text-white text-[11px] font-bold px-2.5 py-1 rounded transition">
+            Sair
+          </button>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- Sub-barra de Navegação Clean -->
-  <div class="bg-white border-b border-slate-200 sticky top-0 z-20">
-    <div class="max-w-[1400px] mx-auto px-6 flex justify-between items-center">
-      <div class="flex gap-6">
+  <!-- Sub-barra de Navegação -->
+  <div class="bg-white border-b border-cni-lighter shadow-sm sticky top-0 z-20">
+    <div class="max-w-[1480px] mx-auto px-6 flex justify-between items-center">
+      <div class="flex gap-8">
         <button id="tab-btn-explorer" type="button" onclick="switchTab('explorer')"
-                class="py-3 border-b-2 border-cni-pure text-cni-pure font-semibold text-xs flex items-center gap-1.5 transition">
-          <span>🏛️</span> Mapa Organizacional
+                class="py-3.5 border-b-2 border-cni-pure text-cni-pure font-bold text-sm flex items-center gap-2 transition">
+          <span>🏛️</span> Mapa Organizacional Interativo (Headcount)
         </button>
         <button id="tab-btn-updater" type="button" onclick="switchTab('updater')"
-                class="py-3 border-b-2 border-transparent text-slate-600 hover:text-cni-pure font-medium text-xs flex items-center gap-1.5 transition">
-          <span>⚡</span> Estúdio & Preview 16:9 (.PPTX)
-        </button>
-        <button id="tab-btn-logs" type="button" onclick="switchTab('logs')"
-                class="py-3 border-b-2 border-transparent text-slate-600 hover:text-cni-pure font-medium text-xs flex items-center gap-1.5 transition">
-          <span>📋</span> Logs & Auditoria
+                class="py-3.5 border-b-2 border-transparent text-slate-500 hover:text-cni-pure font-semibold text-sm flex items-center gap-2 transition">
+          <span>⚡</span> Estúdio de Automação & Pré-Visualização 16:9 (.PPTX)
         </button>
       </div>
-      <div class="flex items-center gap-2">
-        <button type="button" onclick="exportFilteredToCSV()" class="btn secondary btn-small">Exportar (.CSV)</button>
-        <span id="header-ref-label" class="hidden md:inline-block text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1 rounded">
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="exportFilteredToCSV()" class="btn secondary btn-small">
+          <span>📥</span> Exportar Visão (.CSV)
+        </button>
+        <span id="header-ref-label" class="hidden md:inline-block text-xs font-bold uppercase tracking-wider bg-cni-lightest border border-cni-lighter text-cni-pure px-3.5 py-1 rounded-full">
           Aguardando Base
         </span>
       </div>
@@ -459,365 +474,501 @@
   </div>
 
   <!-- Conteúdo Principal -->
-  <main class="max-w-[1400px] mx-auto px-6 py-4 flex-1 w-full space-y-4">
+  <main class="max-w-[1480px] mx-auto px-6 py-5 flex-1 w-full space-y-4">
 
-    <!-- BREADCRUMB -->
-    <div class="flex items-center justify-between bg-white px-3.5 py-1.5 rounded-md border border-slate-200 shadow-2xs">
+    <!-- BREADCRUMB DINÂMICO E FUNCIONAL -->
+    <div class="relative flex items-center justify-between bg-white/80 backdrop-blur-xs px-4 py-2 rounded-xl border border-cni-lighter/80 shadow-2xs">
       <nav aria-label="breadcrumb">
-        <ol id="dynamic-breadcrumb" class="cni-breadcrumb"></ol>
+        <ol id="dynamic-breadcrumb" class="my-stack-micro breadcrumb cni-breadcrumb px-inline-xxxs"></ol>
       </nav>
+
+      <div id="breadcrumb-dots-menu" class="hidden absolute left-10 top-11 z-30 bg-white rounded-xl shadow-xl border border-cni-lighter py-2 w-64 text-xs">
+        <div class="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+          Atalhos do Portal
+        </div>
+        <button type="button" onclick="navigateHome(); toggleBreadcrumbMenu(false);"
+                class="w-full text-left px-3.5 py-2 hover:bg-cni-lightest text-cni-dark font-semibold flex items-center gap-2">
+          <span>🏛️</span> Visão Completa (Resetar Filtros)
+        </button>
+        <button type="button" onclick="switchTab('updater'); toggleBreadcrumbMenu(false);"
+                class="w-full text-left px-3.5 py-2 hover:bg-cni-lightest text-cni-dark font-semibold flex items-center gap-2">
+          <span>⚡</span> Ir para Estúdio PowerPoint (.PPTX)
+        </button>
+        <button type="button" onclick="toggleDataUploadModal(true); toggleBreadcrumbMenu(false);"
+                class="w-full text-left px-3.5 py-2 hover:bg-cni-lightest text-cni-dark font-semibold flex items-center gap-2">
+          <span>📤</span> Subir Planilha (.xlsx / .csv)
+        </button>
+        <button type="button" onclick="exportFilteredToCSV(); toggleBreadcrumbMenu(false);"
+                class="w-full text-left px-3.5 py-2 hover:bg-cni-lightest text-cni-dark font-semibold flex items-center gap-2">
+          <span>📥</span> Exportar Visão Atual (.CSV)
+        </button>
+      </div>
+
       <div id="breadcrumb-QuickReset" class="hidden">
-        <button type="button" onclick="navigateHome()" class="text-xs font-semibold text-cni-pure hover:underline">↺ Visão Completa</button>
+        <button type="button" onclick="navigateHome()" class="text-xs font-bold text-cni-pure hover:underline flex items-center gap-1">
+          <span>↺</span> Voltar à Visão Completa
+        </button>
       </div>
     </div>
 
-    <!-- ABA 1: MAPA ORGANIZACIONAL -->
-    <section id="tab-explorer" class="space-y-4">
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <div onclick="resetFilters()" class="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white p-3.5 rounded-lg shadow-sm flex flex-col justify-between transition">
-          <div class="flex justify-between items-center text-[10px] text-slate-400 uppercase font-semibold">
-            <span>Quadro Total</span>
-            <span>100%</span>
+    <!-- ================================================================= -->
+    <!-- ABA 1: MAPA ORGANIZACIONAL INTERATIVO                             -->
+    <!-- ================================================================= -->
+    <section id="tab-explorer" class="space-y-6">
+
+      <!-- KPIs Macro -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div onclick="resetFilters()" title="Clique para ver todas as Diretorias e Entidades"
+             class="cursor-pointer bg-gradient-to-br from-cni-dark to-cni-pure hover:shadow-lg text-white p-4 rounded-xl shadow-md flex flex-col justify-between transition">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-cni-lighter font-bold">Quadro Total Ativo</span>
+            <span class="text-[10px] bg-white/15 px-2 py-0.5 rounded">100%</span>
           </div>
-          <div class="flex items-baseline justify-between mt-2">
-            <span id="kpi-total-hc" class="text-2xl font-bold">--</span>
-            <span id="kpi-total-units" class="text-[11px] text-slate-400">-- un</span>
+          <div class="flex items-baseline justify-between mt-3">
+            <span id="kpi-total-hc" class="text-3xl font-extrabold">--</span>
+            <span id="kpi-total-units" class="text-xs text-cni-lighter font-medium">-- unidades</span>
           </div>
         </div>
 
-        <div onclick="quickFilterEntity('CNI')" class="cursor-pointer bg-white hover:border-cni-pure p-3.5 rounded-lg border border-slate-200 transition">
-          <div class="flex justify-between items-center text-[10px] text-slate-500 uppercase font-semibold">
-            <span>Diretorias CNI</span>
-            <span id="pct-cni" class="text-cni-pure font-bold">--%</span>
+        <div onclick="quickFilterEntity('CNI')" class="cursor-pointer bg-white hover:shadow-md hover:border-cni-pure p-4 rounded-xl shadow-sm border-t-4 border-cni-pure transition">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Diretorias CNI</span>
+            <span id="pct-cni" class="text-[11px] font-bold text-cni-pure bg-cni-lightest px-2 py-0.5 rounded">--%</span>
           </div>
-          <span id="kpi-cni" class="text-xl font-bold text-cni-pure mt-2 block">--</span>
+          <span id="kpi-cni" class="text-2xl font-extrabold text-cni-pure mt-2 block">--</span>
+          <span class="text-[11px] text-slate-400">Clique para explorar ➔</span>
         </div>
 
-        <div onclick="quickFilterEntity('SENAI')" class="cursor-pointer bg-white hover:border-senai-orange p-3.5 rounded-lg border border-slate-200 transition">
-          <div class="flex justify-between items-center text-[10px] text-slate-500 uppercase font-semibold">
-            <span>SENAI-DN</span>
-            <span id="pct-senai" class="text-senai-orange font-bold">--%</span>
+        <div onclick="quickFilterEntity('SENAI')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-senai-orange transition">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">SENAI-DN</span>
+            <span id="pct-senai" class="text-[11px] font-bold text-senai-orange bg-orange-50 px-2 py-0.5 rounded">--%</span>
           </div>
-          <span id="kpi-senai" class="text-xl font-bold text-slate-900 mt-2 block">--</span>
+          <span id="kpi-senai" class="text-2xl font-extrabold text-senai mt-2 block">--</span>
+          <span class="text-[11px] text-slate-400">Clique para explorar ➔</span>
         </div>
 
-        <div onclick="quickFilterEntity('SESI')" class="cursor-pointer bg-white hover:border-sesi p-3.5 rounded-lg border border-slate-200 transition">
-          <div class="flex justify-between items-center text-[10px] text-slate-500 uppercase font-semibold">
-            <span>SESI-DN</span>
-            <span id="pct-sesi" class="text-sesi font-bold">--%</span>
+        <div onclick="quickFilterEntity('SESI')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-sesi transition">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">SESI-DN</span>
+            <span id="pct-sesi" class="text-[11px] font-bold text-sesi bg-emerald-50 px-2 py-0.5 rounded">--%</span>
           </div>
-          <span id="kpi-sesi" class="text-xl font-bold text-slate-900 mt-2 block">--</span>
+          <span id="kpi-sesi" class="text-2xl font-extrabold text-sesi mt-2 block">--</span>
+          <span class="text-[11px] text-slate-400">Clique para explorar ➔</span>
         </div>
 
-        <div onclick="quickFilterEntity('IEL')" class="cursor-pointer bg-white hover:border-iel p-3.5 rounded-lg border border-slate-200 transition">
-          <div class="flex justify-between items-center text-[10px] text-slate-500 uppercase font-semibold">
-            <span>IEL / NC</span>
-            <span id="pct-iel" class="text-iel font-bold">--%</span>
+        <div onclick="quickFilterEntity('IEL')" class="cursor-pointer bg-white hover:shadow-md p-4 rounded-xl shadow-sm border-t-4 border-iel transition">
+          <div class="flex justify-between items-center">
+            <span class="text-[11px] uppercase tracking-wider text-slate-500 font-bold">IEL / NC</span>
+            <span id="pct-iel" class="text-[11px] font-bold text-iel bg-sky-50 px-2 py-0.5 rounded">--%</span>
           </div>
-          <span id="kpi-iel" class="text-xl font-bold text-slate-900 mt-2 block">--</span>
+          <span id="kpi-iel" class="text-2xl font-extrabold text-iel mt-2 block">--</span>
+          <span class="text-[11px] text-slate-400">Clique para explorar ➔</span>
         </div>
       </div>
 
-      <!-- Filtros -->
-      <div class="bg-white p-4 rounded-lg border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+      <!-- Barra de Filtros Inteligentes -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-cni-lighter/80 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
         <div class="md:col-span-4">
-          <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">1. Diretoria / Entidade</label>
-          <select id="filter-segmento" onchange="onSegmentoChange()" class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-xs bg-white focus:ring-1 focus:ring-cni-pure focus:outline-none">
-            <option value="TODOS">Todas as Diretorias e Entidades</option>
+          <label class="block text-xs font-bold uppercase text-cni-dark mb-1.5">1. Filtrar Diretoria / Entidade</label>
+          <select id="filter-segmento" onchange="onSegmentoChange()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-cni-pure focus:outline-none">
+            <option value="TODOS">Todas as Diretorias e Entidades (Visão Completa)</option>
           </select>
         </div>
         <div class="md:col-span-4">
-          <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">2. Superintendência</label>
-          <select id="filter-area" onchange="loadHeadcount(false)" class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-xs bg-white focus:ring-1 focus:ring-cni-pure focus:outline-none">
+          <label class="block text-xs font-bold uppercase text-cni-dark mb-1.5">2. Filtrar Superintendência (Área)</label>
+          <select id="filter-area" onchange="loadHeadcount(false)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-cni-pure focus:outline-none">
             <option value="TODAS">Todas as Superintendências</option>
           </select>
         </div>
         <div class="md:col-span-3">
-          <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">3. Pesquisar Unidade / Gestor</label>
-          <input id="filter-search" type="text" oninput="loadHeadcount(false)" placeholder="Ex: Observatório, TI..."
-                 class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-xs focus:ring-1 focus:ring-cni-pure focus:outline-none" />
+          <label class="block text-xs font-bold uppercase text-cni-dark mb-1.5">3. Pesquisar Unidade ou Gestor</label>
+          <input id="filter-search" type="text" oninput="loadHeadcount(false)" placeholder="Ex: Observatório, TI, Samantha..."
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-cni-pure focus:outline-none" />
         </div>
         <div class="md:col-span-1">
-          <button type="button" onclick="resetFilters()" class="w-full btn secondary btn-small">Resetar</button>
+          <button type="button" onclick="resetFilters()" class="w-full btn secondary">
+            Resetar
+          </button>
         </div>
       </div>
 
-      <div id="hierarchy-container" class="space-y-4"></div>
+      <div id="hierarchy-container" class="space-y-6"></div>
     </section>
 
-    <!-- ABA 2: ESTÚDIO DE AUTOMAÇÃO E PREVIEW -->
-    <section id="tab-updater" class="hidden space-y-4">
-      <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <div class="bg-slate-900 px-5 py-3 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+    <!-- ================================================================= -->
+    <!-- ABA 2: ESTÚDIO DE AUTOMAÇÃO, PREVIEW 16:9 E EDIÇÃO POWERPOINT     -->
+    <!-- ================================================================= -->
+    <section id="tab-updater" class="hidden space-y-6">
+
+      <!-- Card de Upload + Opção de Auto-Layout -->
+      <div class="bg-white rounded-xl shadow-sm border border-cni-lighter overflow-hidden">
+        <div class="bg-cni-dark px-6 py-4 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
-            <h2 class="text-sm font-bold">Estúdio de Atualização & Pré-Visualização 16:9 (.PPTX)</h2>
-            <p class="text-[11px] text-slate-400">Edite caixas, adicione novas unidades ou remova com compactação automática de coluna.</p>
+            <h2 class="text-base font-bold">Estúdio de Atualização Cirúrgica, Pré-Visualização 16:9 & Edição Estrutural (.PPTX)</h2>
+            <p class="text-xs text-white/80 mt-0.5">
+              Adicione, edite ou remova caixas com alinhamento automático de coluna e recálculo em cascata.
+            </p>
           </div>
-          <label class="flex items-center gap-2 bg-slate-800 px-3 py-1 rounded text-xs cursor-pointer border border-slate-700">
-            <input id="chk-auto-layout" type="checkbox" checked class="accent-cni-pure w-3.5 h-3.5" />
-            <span>Auto-Layout Inteligente</span>
+          <label class="flex items-center gap-2 bg-white/10 px-3.5 py-1.5 rounded-lg cursor-pointer text-xs font-semibold">
+            <input id="chk-auto-layout" type="checkbox" checked class="accent-emerald-400 w-4 h-4" />
+            <span>Ativar Auto-Layout Inteligente (Compactar colunas ao remover)</span>
           </label>
         </div>
 
-        <form id="pptx-upload-form" onsubmit="handlePptxUpdate(event)" class="p-5 space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-            <div class="md:col-span-2 border border-dashed border-slate-300 bg-slate-50 rounded-lg p-3">
-              <div class="flex justify-between items-center mb-1.5">
-                <label class="block text-[11px] font-bold uppercase text-slate-700">Apresentação PowerPoint (.pptx)</label>
-                <span id="active-data-source-pill" class="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">Aguardando Base</span>
+        <form id="pptx-upload-form" onsubmit="handlePptxUpdate(event)" class="p-6 space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            <div class="md:col-span-2 border-2 border-dashed border-cni-medium/40 bg-cni-lightest/30 rounded-xl p-4 flex flex-col justify-center">
+              <div class="flex justify-between items-center mb-2">
+                <label class="block text-xs font-bold uppercase text-cni-dark">
+                  Apresentação PowerPoint Base (.pptx)
+                </label>
+                <span id="active-data-source-pill" class="text-[11px] font-semibold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
+                  Aguardando Base de Dados
+                </span>
               </div>
               <input id="pptx-file" type="file" accept=".pptx" required onchange="onPptxFileSelected()"
-                     class="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cni-pure file:text-white cursor-pointer" />
+                     class="w-full text-sm text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cni-pure file:text-white hover:file:bg-cni-dark cursor-pointer focus:outline-none" />
             </div>
-            <div class="space-y-2">
+            <div class="space-y-3">
               <div>
-                <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">Tag de Data nos Slides</label>
-                <input id="pptx-ref-label" type="text" value="" placeholder="Automático pela planilha" required
-                       class="w-full border border-slate-300 rounded-md px-3 py-1.5 text-xs font-semibold text-slate-800" />
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Tag de Data Base nos 11 Slides</label>
+                <input id="pptx-ref-label" type="text" value="" placeholder="Preenchido automaticamente pela planilha" required
+                       class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold text-cni-dark" />
               </div>
-              <button id="btn-submit-pptx" type="submit" class="w-full btn portal-btn primary btn-small py-2">
-                Processar & Gerar PPTX
-              </button>
+
+              <div class="container flex flex-col gap-2">
+                <button id="btn-submit-pptx" type="submit" class="btn portal-btn primary icon-left w-full py-2.5">
+                  Processar e Gerar .PPTX Atualizado
+                </button>
+              </div>
             </div>
           </div>
 
-          <div id="pptx-progress-wrapper" class="hidden pt-3 border-t border-slate-100 space-y-1.5">
-            <div class="flex justify-between items-center text-xs font-semibold text-slate-700">
-              <span id="pptx-progress-status">Processando...</span>
-              <span id="pptx-progress-stage" class="text-[11px] text-slate-500">Aguarde</span>
+          <!-- Barra de Progresso CNI -->
+          <div id="pptx-progress-wrapper" class="hidden pt-4 border-t border-slate-100 space-y-2">
+            <div class="flex justify-between items-center text-xs font-bold text-cni-dark">
+              <span id="pptx-progress-status">Iniciando processamento do PowerPoint...</span>
+              <span id="pptx-progress-stage" class="text-[11px] font-semibold text-cni-medium">Aguarde</span>
             </div>
-            <div class="progress-bar">
+            <div class="progress-bar progress-pill progress-bar-shadow" id="progressbar21">
               <div class="progress-counter">0%</div>
-              <span class="progress bg-cni-pure" style="width: 0%;"></span>
+              <span class="progress bg-portal-pure" style="width: 0%;"></span>
             </div>
           </div>
         </form>
       </div>
 
-      <!-- Resultados + Preview 16:9 + Editor Clean -->
-      <div id="audit-report-panel" class="hidden space-y-4">
+      <!-- Painel de Resultados + Visualizador 16:9 + Split View -->
+      <div id="audit-report-panel" class="hidden space-y-6">
 
-        <!-- KPIs + Histórico Volátil Clean -->
-        <div class="bg-white p-4 rounded-lg border border-slate-200 space-y-3">
+        <!-- KPIs de Validação + Botão Download -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-cni-pure space-y-4">
           <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 w-full md:w-auto text-xs">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 w-full md:w-auto">
               <div>
-                <span class="text-slate-400 uppercase text-[10px] block">Slides</span>
-                <span id="rep-slides" class="font-bold text-slate-900 text-sm">11 / 11</span>
+                <span class="text-[11px] font-bold text-slate-400 uppercase block">Slides Validados</span>
+                <span id="rep-slides" class="text-xl font-extrabold text-cni-dark">11 / 11</span>
               </div>
               <div>
-                <span class="text-slate-400 uppercase text-[10px] block">Total CNI</span>
-                <span id="rep-total-cni" class="font-bold text-cni-pure text-sm">--</span>
+                <span class="text-[11px] font-bold text-slate-400 uppercase block">Total Geral CNI (Recalculado)</span>
+                <span id="rep-total-cni" class="text-xl font-extrabold text-cni-pure">--</span>
               </div>
               <div>
-                <span class="text-slate-400 uppercase text-[10px] block">Atualizados</span>
-                <span id="rep-updated" class="font-bold text-emerald-600 text-sm">--</span>
+                <span class="text-[11px] font-bold text-slate-400 uppercase block">Elementos Atualizados</span>
+                <span id="rep-updated" class="text-xl font-extrabold text-sesi">--</span>
               </div>
               <div>
-                <span class="text-slate-400 uppercase text-[10px] block">Desativados</span>
-                <span id="rep-conflicts" class="font-bold text-amber-600 text-sm">--</span>
+                <span class="text-[11px] font-bold text-slate-400 uppercase block">Caixas Desativadas (0)</span>
+                <span id="rep-conflicts" class="text-xl font-extrabold text-senai-orange">--</span>
               </div>
             </div>
 
-            <button id="btn-download-result" type="button" class="btn portal-btn primary btn-small">
-              Baixar .PPTX Atualizado
+            <button id="btn-download-result" type="button" class="btn portal-btn primary icon-right px-6 py-3">
+              Baixar Apresentação Atualizada (.pptx)
             </button>
           </div>
 
-          <div class="border-t border-slate-100 pt-2.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-            <div class="flex items-center gap-2 text-xs">
-              <span class="font-bold text-slate-700">📜 Histórico Volátil:</span>
-              <span id="session-log-counter" class="text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">0 ações</span>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-              <button type="button" onclick="exportSessionLogTxt()" class="text-cni-pure hover:underline font-semibold">📥 Baixar Log (.TXT)</button>
-              <button type="button" onclick="clearSessionLog()" class="text-rose-600 hover:underline font-semibold">Limpar</button>
-            </div>
-          </div>
-          <div id="session-log-container" class="bg-slate-50 border border-slate-200 rounded-md p-2 max-h-24 overflow-y-auto text-[11px] text-slate-600 space-y-1">
-            Nenhuma modificação registrada nesta sessão.
-          </div>
-          <div id="layout-notes-box" class="hidden bg-emerald-50 border border-emerald-200 rounded-md p-2 text-xs text-emerald-900"></div>
+          <div id="layout-notes-box" class="hidden bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-900 space-y-1"></div>
         </div>
 
-        <!-- Preview 16:9 -->
-        <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
-          <div class="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center text-xs">
-            <span class="font-bold">🖥️ Preview Interativo 16:9 (Clique em qualquer caixa para editar)</span>
+        <!-- PRÉ-VISUALIZAÇÃO INTERATIVA 16:9 DOS SLIDES DO POWERPOINT -->
+        <div class="bg-white rounded-xl shadow-sm border border-cni-lighter overflow-hidden">
+          <div class="bg-cni-dark text-white px-5 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex items-center gap-3">
+              <span class="bg-white/15 text-xs font-extrabold px-2.5 py-1 rounded">🖥️ Preview Interativo 16:9</span>
+              <div>
+                <h3 class="text-sm font-bold">Mapa Visual do Slide Atualizado (Clique em qualquer caixa para Editar, Clonar ou Excluir)</h3>
+              </div>
+            </div>
             <div class="flex items-center gap-2">
-              <button type="button" onclick="stepPreviewSlide(-1)" class="btn secondary btn-small py-1">◀</button>
-              <select id="preview-slide-selector" onchange="onPreviewSlideSelectChange()" class="bg-slate-800 text-white rounded px-2 py-1 text-xs border border-slate-700 font-semibold">
-                <option value="1">Slide 1 · Macro</option>
-                <option value="2">Slide 2 · Governança</option>
-                <option value="3">Slide 3 · Jurídica</option>
-                <option value="4">Slide 4 · DRI</option>
-                <option value="5">Slide 5 · DDI</option>
-                <option value="6">Slide 6 · Comunicação</option>
-                <option value="7">Slide 7 · Corporativa</option>
+              <button type="button" onclick="stepPreviewSlide(-1)" class="btn secondary btn-small">◀ Anterior</button>
+              <select id="preview-slide-selector" onchange="onPreviewSlideSelectChange()"
+                      class="text-xs font-bold text-cni-dark bg-white rounded-lg px-3 py-1.5 border border-white/20">
+                <option value="1">Slide 1 · Macroestrutura CNI</option>
+                <option value="2">Slide 2 · Governança Interna e Externa</option>
+                <option value="3">Slide 3 · Diretoria Jurídica</option>
+                <option value="4">Slide 4 · Relações Institucionais (DRI)</option>
+                <option value="5">Slide 5 · Desenv. Industrial (DDI)</option>
+                <option value="6">Slide 6 · Diretoria de Comunicação</option>
+                <option value="7">Slide 7 · Diretoria Corporativa</option>
                 <option value="8">Slide 8 · SESI-DN</option>
                 <option value="9">Slide 9 · SENAI-DN</option>
                 <option value="10">Slide 10 · IEL/NC</option>
-                <option value="11">Slide 11 · Compliance</option>
+                <option value="11">Slide 11 · Compliance e Integridade</option>
               </select>
-              <button type="button" onclick="stepPreviewSlide(1)" class="btn secondary btn-small py-1">▶</button>
+              <button type="button" onclick="stepPreviewSlide(1)" class="btn secondary btn-small">Próximo ▶</button>
             </div>
           </div>
-          <div class="p-4 bg-slate-50">
-            <div id="slide-preview-canvas" class="ppt-slide-stage"></div>
+
+          <div class="p-5 bg-slate-100/70">
+            <div id="slide-preview-canvas" class="ppt-slide-stage">
+              <!-- Elementos renderizados dinamicamente a partir de report.slides_preview -->
+            </div>
           </div>
         </div>
 
-        <!-- Split View: Inventário (7/12) | Estúdio (5/12) -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-          <div class="lg:col-span-7 bg-white rounded-lg border border-slate-200 overflow-hidden text-xs">
-            <div class="p-3 bg-slate-50 border-b border-slate-200 space-y-2.5">
-              <div class="flex justify-between items-center">
-                <span class="font-bold uppercase text-slate-700">Inventário Auditável</span>
-                <span id="audit-visible-count" class="font-bold bg-white border border-slate-200 text-cni-pure px-2 py-0.5 rounded">0 itens</span>
+        <!-- SPLIT VIEW: INVENTÁRIO (7/12) | ESTÚDIO DE EDIÇÃO DIREITA (5/12) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+          <!-- COLUNA ESQUERDA: Inventário Auditável -->
+          <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-cni-lighter overflow-hidden">
+            <div class="px-5 py-4 bg-cni-lightest/50 border-b border-cni-lighter space-y-3">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <h3 class="font-bold text-xs uppercase tracking-wider text-cni-dark">
+                    Inventário Auditável de Modificações (Comparativo Visual Antes ➔ Depois)
+                  </h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5">
+                    Clique em <b>"✏️ Editar"</b>, <b>"➕ Clonar Coluna"</b> ou <b>"🗑️ Excluir"</b> para ajustar a estrutura.
+                  </p>
+                </div>
+                <span id="audit-visible-count" class="text-[11px] font-bold bg-white border border-cni-lighter text-cni-pure px-2.5 py-1 rounded-full">
+                  0 itens
+                </span>
               </div>
-              <div class="grid grid-cols-3 gap-2">
-                <select id="audit-slide-filter" onchange="onAuditSlideFilterChange()" class="border border-slate-300 rounded px-2 py-1 bg-white font-semibold">
-                  <option value="TODOS">Todos os Slides</option>
-                  <option value="1">Slide 1</option><option value="2">Slide 2</option><option value="3">Slide 3</option><option value="4">Slide 4</option><option value="5">Slide 5</option>
-                  <option value="6">Slide 6</option><option value="7">Slide 7</option><option value="8">Slide 8</option><option value="9">Slide 9</option><option value="10">Slide 10</option><option value="11">Slide 11</option>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <select id="audit-slide-filter" onchange="onAuditSlideFilterChange()" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-cni-dark">
+                  <option value="TODOS">Todos os Slides (1 a 11)</option>
+                  <option value="1">Slide 1 · Macroestrutura CNI</option>
+                  <option value="2">Slide 2 · Governança Interna e Externa</option>
+                  <option value="3">Slide 3 · Diretoria Jurídica</option>
+                  <option value="4">Slide 4 · Relações Institucionais (DRI)</option>
+                  <option value="5">Slide 5 · Desenv. Industrial (DDI)</option>
+                  <option value="6">Slide 6 · Diretoria de Comunicação</option>
+                  <option value="7">Slide 7 · Diretoria Corporativa</option>
+                  <option value="8">Slide 8 · SESI-DN</option>
+                  <option value="9">Slide 9 · SENAI-DN</option>
+                  <option value="10">Slide 10 · IEL/NC</option>
+                  <option value="11">Slide 11 · Compliance e Integridade</option>
                 </select>
-                <select id="audit-status-filter" onchange="renderAuditTable()" class="border border-slate-300 rounded px-2 py-1 bg-white">
-                  <option value="APENAS_ALTERADOS">Modificados</option>
-                  <option value="CASCATA_E_MANUAIS">⚡ Editados / Cascata</option>
-                  <option value="TODOS">Todos</option>
+
+                <select id="audit-status-filter" onchange="renderAuditTable()" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-medium">
+                  <option value="APENAS_ALTERADOS">Apenas Elementos Modificados</option>
+                  <option value="CASCATA_E_MANUAIS">⚡ Editados / Adicionados / Cascata</option>
+                  <option value="APENAS_SUBTOTAIS">📊 Subtotais de Superintendência & Totais</option>
+                  <option value="TODOS">Mostrar Todos (Incluindo Inalterados)</option>
+                  <option value="NOVA_CAIXA_CRIADA_PADRAO_PPT">🟢 Novas Caixas Criadas</option>
+                  <option value="CAIXA_REMOVIDA_PELO_UTILIZADOR">🔴 Caixas Removidas</option>
+                  <option value="NOME_E_NUMERO_ATUALIZADOS">🟣 Áreas / Gestores Editados</option>
+                  <option value="NUMERO_ATUALIZADO">🔵 Números / Subtotais Atualizados</option>
+                  <option value="UNIDADE_SEM_CONTRATOS_NO_BANCO">🟠 Caixas Desativadas (0)</option>
                 </select>
-                <input id="audit-search-input" type="text" oninput="renderAuditTable()" placeholder="🔍 Buscar..." class="border border-slate-300 rounded px-2 py-1 bg-white" />
+
+                <input id="audit-search-input" type="text" oninput="renderAuditTable()" placeholder="🔍 Buscar área, gestor ou shape..."
+                       class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-cni-pure focus:outline-none" />
               </div>
             </div>
-            <div id="audit-cards-container" class="divide-y divide-slate-100 max-h-[500px] overflow-y-auto p-3 space-y-2"></div>
+
+            <div id="audit-cards-container" class="divide-y divide-slate-100 max-h-[680px] overflow-y-auto p-4 space-y-2.5"></div>
           </div>
 
-          <!-- Estúdio de Edição Clean -->
-          <div id="live-editor-card" class="lg:col-span-5 bg-white rounded-lg border border-slate-200 overflow-hidden sticky top-16">
-            <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center text-xs">
-              <span class="font-bold">Estúdio de Edição em Tempo Real</span>
-              <span id="override-count-badge" class="bg-amber-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">0 na fila</span>
+          <!-- COLUNA DIREITA: Estúdio Estrutural (UPDATE / ADD / REMOVE) -->
+          <div id="live-editor-card" class="lg:col-span-5 bg-white rounded-xl shadow-md border-2 border-cni-lighter overflow-hidden sticky top-16 transition">
+            <div class="bg-cni-dark text-white px-5 py-3.5 flex justify-between items-center">
+              <div>
+                <span class="text-[10px] uppercase tracking-widest text-cni-lighter font-bold block">Estúdio Estrutural em Tempo Real</span>
+                <h3 class="font-bold text-sm">Editar, Adicionar ou Remover Caixas</h3>
+              </div>
+              <span id="override-count-badge" class="bg-senai-orange text-white text-xs font-extrabold px-2.5 py-0.5 rounded-full">
+                0 ajustes na fila
+              </span>
             </div>
 
-            <div class="p-4 space-y-3 text-xs">
-              <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded border border-slate-200 font-semibold">
-                <button id="mode-btn-UPDATE" type="button" onclick="setEditorActionMode('UPDATE')" class="py-1.5 rounded bg-cni-pure text-white text-center transition">✏️ Editar</button>
-                <button id="mode-btn-ADD" type="button" onclick="setEditorActionMode('ADD')" class="py-1.5 rounded text-slate-700 text-center transition">➕ Nova</button>
-                <button id="mode-btn-REMOVE" type="button" onclick="setEditorActionMode('REMOVE')" class="py-1.5 rounded text-rose-700 text-center transition">🗑️ Excluir</button>
+            <div class="p-5 space-y-4">
+
+              <!-- SELETOR DE MODO DE OPERAÇÃO -->
+              <div class="grid grid-cols-3 gap-1.5 bg-cni-lightest p-1 rounded-xl border border-cni-lighter">
+                <button id="mode-btn-UPDATE" type="button" onclick="setEditorActionMode('UPDATE')"
+                        class="py-2 px-2 rounded-lg text-xs font-extrabold bg-cni-pure text-white shadow-xs transition">
+                  ✏️ Editar Caixa
+                </button>
+                <button id="mode-btn-ADD" type="button" onclick="setEditorActionMode('ADD')"
+                        class="py-2 px-2 rounded-lg text-xs font-bold text-cni-dark hover:bg-white/60 transition">
+                  ➕ Nova Caixa
+                </button>
+                <button id="mode-btn-REMOVE" type="button" onclick="setEditorActionMode('REMOVE')"
+                        class="py-2 px-2 rounded-lg text-xs font-bold text-rose-700 hover:bg-white/60 transition">
+                  🗑️ Excluir Caixa
+                </button>
               </div>
 
-              <div class="bg-slate-50 border border-slate-200 rounded p-3 space-y-2">
+              <!-- PASSO 1: Seletor Guiado -->
+              <div class="bg-cni-lightest/50 border border-cni-lighter rounded-xl p-3.5 space-y-2.5">
                 <div class="flex justify-between items-center">
-                  <span id="editor-step1-title" class="font-bold text-slate-700 uppercase text-[10px]">1. Selecionar Caixa</span>
-                  <button type="button" onclick="toggleAdvancedShapeInputs()" class="text-[10px] text-cni-pure font-semibold hover:underline">Shape ID</button>
+                  <span id="editor-step1-title" class="text-[11px] font-extrabold uppercase text-cni-dark">
+                    1. Selecionar Caixa no Slide
+                  </span>
+                  <button type="button" onclick="toggleAdvancedShapeInputs()" class="text-[10px] font-bold text-cni-pure hover:underline">
+                    🔧 Shape ID Manual
+                  </button>
                 </div>
-                <div class="grid grid-cols-3 gap-2">
-                  <select id="editor-quick-slide" onchange="onEditorQuickSlideChange()" class="border border-slate-300 rounded px-2 py-1 font-bold bg-white text-xs">
-                    <option value="1">Slide 1</option><option value="2">Slide 2</option><option value="3">Slide 3</option><option value="4">Slide 4</option><option value="5">Slide 5</option>
-                    <option value="6">Slide 6</option><option value="7">Slide 7</option><option value="8">Slide 8</option><option value="9">Slide 9</option><option value="10">Slide 10</option><option value="11">Slide 11</option>
-                  </select>
-                  <select id="editor-quick-box" onchange="onEditorQuickBoxSelect()" class="col-span-2 border border-slate-300 rounded px-2 py-1 bg-white text-xs">
-                    <option value="">Clique no Preview...</option>
-                  </select>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Slide</label>
+                    <select id="editor-quick-slide" onchange="onEditorQuickSlideChange()"
+                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-cni-dark bg-white">
+                      <option value="1">Slide 1 · Macro CNI</option>
+                      <option value="2">Slide 2 · Governança</option>
+                      <option value="3">Slide 3 · Jurídica</option>
+                      <option value="4">Slide 4 · DRI</option>
+                      <option value="5">Slide 5 · DDI</option>
+                      <option value="6">Slide 6 · Comunicação</option>
+                      <option value="7">Slide 7 · Corporativa</option>
+                      <option value="8">Slide 8 · SESI-DN</option>
+                      <option value="9">Slide 9 · SENAI-DN</option>
+                      <option value="10">Slide 10 · IEL/NC</option>
+                      <option value="11">Slide 11 · Compliance</option>
+                    </select>
+                  </div>
+                  <div class="sm:col-span-2">
+                    <label id="editor-quick-box-label" class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Caixa Alvo</label>
+                    <select id="editor-quick-box" onchange="onEditorQuickBoxSelect()"
+                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-800 bg-white">
+                      <option value="">Clique numa caixa no Preview 16:9 ou selecione aqui...</option>
+                    </select>
+                  </div>
                 </div>
-                <div id="advanced-shape-inputs" class="hidden grid grid-cols-2 gap-2 pt-1 border-t border-slate-200">
-                  <input id="edit-slide-idx" type="number" min="1" max="11" placeholder="Slide" oninput="onEditorFieldInput()" class="border border-slate-300 rounded px-2 py-1" />
-                  <input id="edit-shape-id" type="text" placeholder="Shape ID" oninput="onEditorFieldInput()" class="border border-slate-300 rounded px-2 py-1 font-mono" />
+
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-cni-lighter/70 text-[11px]">
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-bold text-cni-dark">Referência:</span>
+                    <span id="editor-context-pill" class="bg-white border border-cni-lighter text-cni-pure font-mono text-[10px] px-2 py-0.5 rounded">
+                      Nenhum elemento selecionado
+                    </span>
+                  </div>
+                  <span id="editor-hierarchy-pill" class="text-[10px] font-semibold text-slate-500"></span>
+                </div>
+
+                <div id="advanced-shape-inputs" class="hidden grid grid-cols-2 gap-3 pt-2 border-t border-cni-lighter">
+                  <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">Slide (1 a 11)</label>
+                    <input id="edit-slide-idx" type="number" min="1" max="11" placeholder="Ex: 2" oninput="onEditorFieldInput()"
+                           class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-cni-dark bg-white" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-600 mb-1">Shape ID (Nome | Badge)</label>
+                    <input id="edit-shape-id" type="text" placeholder="Ex: 20.21 | 20.22" oninput="onEditorFieldInput()"
+                           class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono bg-white" />
+                  </div>
                 </div>
               </div>
 
-              <div id="editor-fields-wrapper" class="space-y-2.5">
+              <!-- PASSO 2: Campos de Dados -->
+              <div id="editor-fields-wrapper" class="space-y-3">
                 <div>
-                  <label id="lbl-edit-area-name" class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Nome da Área / Unidade</label>
-                  <input id="edit-area-name" type="text" placeholder="Ex: Gerência de..." oninput="onEditorFieldInput()"
-                         class="w-full border border-slate-300 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-cni-pure focus:outline-none" />
+                  <label id="lbl-edit-area-name" class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Nome da Área / Unidade no Slide</label>
+                  <input id="edit-area-name" type="text" placeholder="Ex: Gerência de Desenvolvimento Industrial"
+                         oninput="onEditorFieldInput()"
+                         class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-cni-pure focus:outline-none" />
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                   <div class="sm:col-span-7">
-                    <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Nome do Gestor</label>
-                    <input id="edit-manager-name" type="text" placeholder="Ex: Nome (Gestor)" oninput="onEditorFieldInput()"
-                           class="w-full border border-slate-300 rounded px-2.5 py-1.5 focus:ring-1 focus:ring-cni-pure focus:outline-none" />
+                    <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Nome do Gestor (Parênteses Automáticos)</label>
+                    <input id="edit-manager-name" type="text" placeholder="Ex: Nome do Gestor"
+                           oninput="onEditorFieldInput()"
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-cni-pure focus:outline-none" />
                   </div>
                   <div class="sm:col-span-5">
-                    <label class="block font-bold text-slate-700 uppercase text-[10px] mb-1">Headcount</label>
+                    <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1">Headcount (Contratos)</label>
                     <div class="flex items-center">
-                      <button type="button" onclick="stepEditorHeadcount(-1)" class="bg-slate-100 border border-slate-300 px-2 py-1 rounded-l font-bold">−</button>
-                      <input id="edit-headcount" type="number" min="0" placeholder="0" oninput="onEditorFieldInput()" class="w-full border-y border-slate-300 py-1 text-center font-bold text-cni-pure" />
-                      <button type="button" onclick="stepEditorHeadcount(1)" class="bg-slate-100 border border-slate-300 px-2 py-1 rounded-r font-bold">+</button>
+                      <button type="button" onclick="stepEditorHeadcount(-1)"
+                              class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-cni-dark font-extrabold px-2.5 py-2 rounded-l-lg text-xs">
+                        −
+                      </button>
+                      <input id="edit-headcount" type="number" min="0" placeholder="0" oninput="onEditorFieldInput()"
+                             class="w-full border-y border-slate-300 py-2 text-center text-sm font-extrabold text-cni-pure focus:outline-none" />
+                      <button type="button" onclick="stepEditorHeadcount(1)"
+                              class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-cni-dark font-extrabold px-2.5 py-2 rounded-r-lg text-xs">
+                        +
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div class="bg-slate-50 border border-slate-200 rounded p-2.5 space-y-1.5">
-                <div id="preview-mini-card" class="bg-white border-l-2 border-cni-pure border border-slate-200 rounded p-2 flex justify-between items-center">
-                  <div>
-                    <div id="preview-box-area" class="font-bold text-slate-800">Selecione uma caixa...</div>
-                    <div id="preview-box-manager" class="text-[10px] text-cni-pure"></div>
+              <!-- PASSO 3: Preview Visual + Cascata -->
+              <div id="live-box-preview-container" class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                <div class="flex justify-between items-center">
+                  <span id="preview-header-label" class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Pré-Visualização da Caixa no Slide
+                  </span>
+                  <span id="live-delta-badge" class="hidden text-[10px] font-extrabold px-2 py-0.5 rounded-full"></span>
+                </div>
+
+                <div id="preview-mini-card" class="bg-white border-l-4 border-cni-pure border border-slate-200 rounded-lg p-2.5 shadow-2xs flex justify-between items-center gap-3">
+                  <div class="text-xs leading-snug">
+                    <div id="preview-box-area" class="font-bold text-slate-800">Selecione uma caixa para visualizar...</div>
+                    <div id="preview-box-manager" class="text-[11px] text-cni-pure font-medium"></div>
                   </div>
-                  <span id="preview-box-hc" class="bg-cni-pure text-white font-bold px-2 py-0.5 rounded text-xs">--</span>
+                  <span id="preview-box-hc" class="bg-cni-pure text-white font-extrabold text-sm px-3 py-1 rounded-md min-w-[38px] text-center shadow-2xs">
+                    --
+                  </span>
                 </div>
-                <div id="live-cascade-impact-note" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-900 rounded p-2 text-[11px]"></div>
-              </div>
 
-              <div class="grid grid-cols-2 gap-2">
-                <button type="button" onclick="resetEditorForm()" class="btn secondary btn-small">Limpar</button>
-                <button id="btn-queue-action" type="button" onclick="addManualOverride()" class="btn secondary btn-small font-bold">+ Guardar na Fila</button>
-              </div>
-
-              <div class="border-t border-slate-200 pt-2">
-                <div class="flex justify-between items-center mb-1 text-[11px] font-bold text-slate-600">
-                  <span>Fila de Alterações</span>
-                  <button type="button" onclick="clearManualOverrides()" class="text-rose-600 hover:underline">Limpar fila</button>
+                <div id="live-cascade-impact-note" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-lg p-2.5 text-[11px] leading-relaxed">
                 </div>
-                <div id="overrides-list" class="space-y-1.5 max-h-32 overflow-y-auto text-[11px] text-slate-500 italic">Nenhuma edição na fila.</div>
               </div>
 
-              <button type="button" onclick="applyAndRegeneratePptx()" class="w-full btn portal-btn primary btn-small py-2.5 font-bold">
-                Aplicar Ajustes & Re-gerar PPTX
+              <div class="grid grid-cols-2 gap-2.5">
+                <button type="button" onclick="resetEditorForm()" class="btn secondary btn-small py-2">
+                  Limpar Seleção
+                </button>
+                <button id="btn-queue-action" type="button" onclick="addManualOverride()" class="btn secondary py-2 font-bold">
+                  + Guardar na Fila
+                </button>
+              </div>
+
+              <div class="border-t border-slate-200 pt-3">
+                <div class="flex justify-between items-center mb-2">
+                  <span class="text-[11px] font-bold uppercase text-slate-500">Fila de Alterações Estruturais</span>
+                  <button type="button" onclick="clearManualOverrides()" class="text-[11px] text-rose-600 hover:underline font-semibold">
+                    Limpar fila
+                  </button>
+                </div>
+                <div id="overrides-list" class="space-y-2 max-h-44 overflow-y-auto text-xs text-slate-500 italic">
+                  Nenhuma edição manual adicionada.
+                </div>
+              </div>
+
+              <button type="button" onclick="applyAndRegeneratePptx()" class="w-full btn portal-btn primary icon-right py-3">
+                Aplicar Ajustes (Recalcular Cascata) e Re-gerar PPTX
               </button>
             </div>
           </div>
-        </div>
-      </div>
-    </section>
 
-    <!-- ABA 3: LOGS & AUDITORIA -->
-    <section id="tab-logs" class="hidden space-y-4">
-      <div class="bg-white rounded-lg border border-slate-200 overflow-hidden text-xs">
-        <div class="bg-slate-900 px-5 py-3 text-white flex justify-between items-center">
-          <div>
-            <span class="text-[9px] uppercase tracking-widest text-slate-400 font-bold block">Governança</span>
-            <h3 class="text-sm font-bold">Logs de Auditoria e Extração</h3>
-          </div>
-          <div class="flex gap-2">
-            <a href="/api/audit-logs/export" class="btn portal-btn primary btn-small">📥 Baixar Relatório (.TXT)</a>
-            <button type="button" onclick="loadServerAuditLogs()" class="btn secondary btn-small">🔄 Atualizar</button>
-          </div>
-        </div>
-        <div class="p-5">
-          <table class="w-full text-left border-collapse">
-            <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold border-b border-slate-200">
-              <tr>
-                <th class="p-2.5">Data / Hora</th>
-                <th class="p-2.5">Utilizador</th>
-                <th class="p-2.5">Ação</th>
-                <th class="p-2.5">Detalhes</th>
-              </tr>
-            </thead>
-            <tbody id="server-audit-logs-tbody" class="divide-y divide-slate-100">
-              <tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Carregando registos...</td></tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </section>
 
   </main>
 
-  <footer class="bg-white border-t border-slate-200 mt-8 py-3">
-    <div class="max-w-[1400px] mx-auto px-6 flex flex-col sm:flex-row justify-between items-center text-[11px] text-slate-500">
-      <span>Sistema Indústria · Confederação Nacional da Indústria (CNI) · SDH</span>
+  <footer class="bg-white border-t border-cni-lighter mt-12 py-4">
+    <div class="max-w-[1480px] mx-auto px-6 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-400">
+      <span>Sistema Indústria · Confederação Nacional da Indústria (CNI) · Superintendência de Desenvolvimento Humano (SDH)</span>
       <span>People Analytics & Data Engineering</span>
     </div>
   </footer>
@@ -872,125 +1023,16 @@
       }
     }
 
-    // Sistema de Toast Clean (Substituiu os modais centrais de alerta)
-    function showToast(title, message) {
-      const container = document.getElementById('toast-container');
-      if (!container) return;
-      const toast = document.createElement('div');
-      toast.className = 'toast-item';
-      toast.innerHTML = `
-        <div class="text-cni-pure text-base font-bold">ℹ️</div>
-        <div class="flex-1">
-          <div class="font-bold text-slate-900 text-xs">${escapeHtml(title)}</div>
-          <div class="text-[11px] text-slate-600">${escapeHtml(message)}</div>
-        </div>
-      `;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity 0.2s ease-out';
-        setTimeout(() => toast.remove(), 200);
-      }, 3500);
-    }
-
-    function getSessionLog() {
-      try {
-        const raw = sessionStorage.getItem('si_pa_session_log');
-        return raw ? JSON.parse(raw) : [];
-      } catch (e) { return []; }
-    }
-
-    function pushSessionLog(actionType, description) {
-      try {
-        const log = getSessionLog();
-        const timeStr = new Date().toLocaleTimeString('pt-BR');
-        log.unshift({ time: timeStr, type: actionType, desc: description });
-        if (log.length > 50) log.pop();
-        sessionStorage.setItem('si_pa_session_log', JSON.stringify(log));
-        renderSessionLog();
-      } catch (e) {}
-    }
-
-    function clearSessionLog() {
-      try {
-        sessionStorage.removeItem('si_pa_session_log');
-        renderSessionLog();
-        showToast('Histórico Limpo', 'O log volátil da sessão foi reiniciado.');
-      } catch (e) {}
-    }
-
-    function exportSessionLogTxt() {
-      const log = getSessionLog();
-      if (log.length === 0) {
-        showToast('Aviso', 'Nenhum registo na sessão atual para exportar.');
-        return;
-      }
-      let content = "====================================================================\n";
-      content += " SISTEMA INDÚSTRIA · HISTÓRICO VOLÁTIL DE SESSÃO\n";
-      content += "====================================================================\n\n";
-      log.forEach(item => { content += `[${item.time}] ${item.type}: ${item.desc}\n`; });
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Historico_Sessao_Sistema_Industria.txt';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function renderSessionLog() {
-      const container = document.getElementById('session-log-container');
-      const counter = document.getElementById('session-badge-count');
-      if (!container || !counter) return;
-
-      const log = getSessionLog();
-      counter.textContent = String(log.length);
-
-      if (log.length === 0) {
-        container.innerHTML = 'Nenhuma modificação registrada nesta sessão.';
-        return;
-      }
-
-      container.innerHTML = log.map(item => `
-        <div class="flex items-center gap-2 border-b border-slate-100 pb-0.5">
-          <span class="font-mono text-[9px] text-slate-400">[${item.time}]</span>
-          <span class="font-bold text-cni-pure">${item.type}:</span>
-          <span class="text-slate-700 truncate">${escapeHtml(item.desc)}</span>
-        </div>
-      `).join('');
-    }
-
-    async function loadServerAuditLogs() {
-      const tbody = document.getElementById('server-audit-logs-tbody');
-      if (!tbody) return;
-      try {
-        const res = await fetch('/api/audit-logs');
-        const json = await safeParseJson(res);
-        const logs = json.logs || [];
-        if (logs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Nenhum registo de auditoria no servidor.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = logs.map(item => `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="p-2.5 font-mono text-slate-500">${escapeHtml(item.timestamp)}</td>
-            <td class="p-2.5 font-bold text-slate-900">${escapeHtml(item.username)}</td>
-            <td class="p-2.5"><span class="bg-slate-100 text-cni-pure px-2 py-0.5 rounded font-semibold">${escapeHtml(item.action)}</span></td>
-            <td class="p-2.5 text-slate-700">${escapeHtml(item.details)}</td>
-          </tr>
-        `).join('');
-      } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-rose-500 font-semibold">Erro ao carregar logs.</td></tr>';
-      }
-    }
-
     function progress_bar(min, max, selector, animate) {
       const container = document.querySelector(selector);
       if (!container) return;
       const bar = container.querySelector('.progress');
       const counter = container.querySelector('.progress-counter');
 
-      if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+      if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+      }
 
       if (!animate) {
         if (bar) bar.style.width = `${max}%`;
@@ -1004,7 +1046,11 @@
       if (counter) counter.textContent = `${current}%`;
 
       progressTimer = setInterval(() => {
-        if (current >= target) { clearInterval(progressTimer); progressTimer = null; return; }
+        if (current >= target) {
+          clearInterval(progressTimer);
+          progressTimer = null;
+          return;
+        }
         current = Math.min(target, current + Math.max(1, Math.ceil((target - current) / 6)));
         if (bar) bar.style.width = `${current}%`;
         if (counter) counter.textContent = `${current}%`;
@@ -1055,10 +1101,19 @@
       if (!slideObj || !slideObj.elements || slideObj.elements.length === 0) {
         stage.innerHTML = `
           <div class="w-full h-full flex items-center justify-center text-xs text-slate-400 font-semibold">
-            Processe um arquivo .PPTX acima para visualizar o mapa interativo 16:9 limpo deste slide.
+            Processe um arquivo .PPTX acima para visualizar o mapa interativo 16:9 deste slide.
           </div>
         `;
         return;
+      }
+
+      // Renderiza as linhas conectoras do organograma (fundo)
+      if (slideObj.connectors) {
+        slideObj.connectors.forEach(c => {
+          const div = document.createElement('div');
+          div.style = `position:absolute; left:${c.left_pct}%; top:${c.top_pct}%; width:${c.width_pct}%; height:${c.height_pct}%; background:#94A3B8; opacity:0.35; z-index:1; pointer-events:none;`;
+          stage.appendChild(div);
+        });
       }
 
       const activeShapeKey = (document.getElementById('edit-shape-id')?.value || '').trim();
@@ -1071,14 +1126,14 @@
           const div = document.createElement('div');
           div.className = `ppt-el-unit ${isSelected ? 'active-selected' : ''}`;
           div.style = stylePos;
-          div.title = `Editar: ${el.area_name} ${el.manager || ''} [${el.badge}]`;
+          div.title = `Clique para editar, clonar ou excluir: ${el.area_name} ${el.manager || ''} [${el.badge}]`;
           div.onclick = () => selectPreviewElement(slideNumber, el);
           div.innerHTML = `
             <div class="leading-tight overflow-hidden pr-1">
               <div class="text-[9px] font-bold text-slate-800 truncate">${escapeHtml(el.area_name)}</div>
               ${el.manager ? `<div class="text-[8px] text-cni-pure truncate">${escapeHtml(el.manager)}</div>` : ''}
             </div>
-            <span class="bg-cni-pure text-white text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">
+            <span class="bg-cni-pure text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shrink-0">
               ${escapeHtml(el.badge)}
             </span>
           `;
@@ -1087,7 +1142,7 @@
           const div = document.createElement('div');
           div.className = 'ppt-el-badge';
           div.style = stylePos;
-          div.title = `${el.area_name || 'Total'} [Shape ${el.shape_key}]: ${el.badge}`;
+          div.title = `${el.area_name || 'Totalizador'} [Shape ${el.shape_key}]: ${el.badge}`;
           div.onclick = () => selectPreviewElement(slideNumber, el);
           div.textContent = el.badge;
           stage.appendChild(div);
@@ -1095,7 +1150,7 @@
           const div = document.createElement('div');
           div.className = 'ppt-el-inst';
           div.style = stylePos;
-          div.title = `Caixa: ${el.text}`;
+          div.title = `Caixa Institucional: ${el.text}`;
           div.onclick = () => selectPreviewElement(slideNumber, el);
           div.textContent = el.text;
           stage.appendChild(div);
@@ -1121,7 +1176,9 @@
           `Slide ${slideNumber} · Grupo ${el.group_id}`,
           'HEADCOUNT_UNIDADE'
         );
-        if (currentEditorMode !== 'ADD') { currentEditingBaselineHc = numHc; }
+        if (currentEditorMode !== 'ADD') {
+          currentEditingBaselineHc = numHc;
+        }
       } else {
         const numHc = el.badge && !isNaN(parseInt(el.badge, 10)) ? parseInt(el.badge, 10) : 0;
         setEditorFormValues(
@@ -1138,6 +1195,21 @@
       onEditorFieldInput();
       renderSlidePreviewCanvas(slideNumber);
     }
+
+    function toggleBreadcrumbMenu(forceState) {
+      const menu = document.getElementById('breadcrumb-dots-menu');
+      if (!menu) return;
+      const show = typeof forceState === 'boolean' ? forceState : menu.classList.contains('hidden');
+      menu.classList.toggle('hidden', !show);
+    }
+
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('breadcrumb-dots-menu');
+      if (!menu || menu.classList.contains('hidden')) return;
+      if (!e.target.closest('#breadcrumb-dots-menu') && !e.target.closest('.breadcrumb-dots')) {
+        menu.classList.add('hidden');
+      }
+    });
 
     function navigateHome() {
       switchTab('explorer');
@@ -1160,7 +1232,10 @@
       const areaSelect = document.getElementById('filter-area');
       if (segSelect && segName) segSelect.value = segName;
       loadHeadcount(false).then(() => {
-        if (areaSelect) { areaSelect.value = areaName; loadHeadcount(false); }
+        if (areaSelect) {
+          areaSelect.value = areaName;
+          loadHeadcount(false);
+        }
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -1177,7 +1252,7 @@
 
     function openSlideInUpdater(slideNumber) {
       if (currentUserRole === 'VIEWER') {
-        showToast('Acesso Restrito', 'O seu perfil (VIEWER) possui permissão exclusiva para visualização.');
+        alert('O seu perfil (VIEWER) possui permissão exclusiva para visualização de Headcount.');
         return;
       }
       switchTab('updater');
@@ -1200,7 +1275,10 @@
 
     function clearSlideFilter() {
       const slideSelect = document.getElementById('audit-slide-filter');
-      if (slideSelect) { slideSelect.value = 'TODOS'; renderAuditTable(); }
+      if (slideSelect) {
+        slideSelect.value = 'TODOS';
+        renderAuditTable();
+      }
       renderBreadcrumb();
     }
 
@@ -1221,35 +1299,113 @@
       const area = document.getElementById('filter-area')?.value || 'TODAS';
       const search = (document.getElementById('filter-search')?.value || '').trim();
       const slideFilter = document.getElementById('audit-slide-filter')?.value || 'TODOS';
+      const editSlide = (document.getElementById('edit-slide-idx')?.value || '').trim();
       const editShape = (document.getElementById('edit-shape-id')?.value || '').trim();
 
       const hasDeepFilter = (currentActiveTab === 'explorer' && (seg !== 'TODOS' || area !== 'TODAS' || search !== '')) ||
-                            (currentActiveTab === 'updater' && (slideFilter !== 'TODOS' || editShape !== '')) ||
-                            (currentActiveTab === 'logs');
+                            (currentActiveTab === 'updater' && (slideFilter !== 'TODOS' || editShape !== ''));
       if (quickReset) quickReset.classList.toggle('hidden', !hasDeepFilter);
 
       let html = `
-        <li><a href="#" onclick="navigateHome(); return false;">🏠 Início</a></li>
+        <li>
+          <a href="#" onclick="navigateHome(); return false;" title="Início · Visão Completa">
+            <i class="house-icon"></i>
+          </a>
+        </li>
+        <li><i class="arrow-c-right-icon"></i></li>
+        <li>
+          <a href="#" class="breadcrumb-dots" onclick="toggleBreadcrumbMenu(); return false;" title="Menu Rápido">
+            <i class="nav-circle-icon"></i>
+          </a>
+        </li>
         <li><i class="arrow-c-right-icon"></i></li>
       `;
 
       if (currentActiveTab === 'explorer') {
-        html += `<li><span class="breadcrumb-active">Mapa Organizacional</span></li>`;
-        if (seg !== 'TODOS') { html += `<li><i class="arrow-c-right-icon"></i></li><li><span class="breadcrumb-active">${escapeHtml(seg)}</span></li>`; }
-        if (area !== 'TODAS') { html += `<li><i class="arrow-c-right-icon"></i></li><li><span class="breadcrumb-active">${escapeHtml(area)}</span></li>`; }
-      } else if (currentActiveTab === 'updater') {
-        html += `<li><span class="breadcrumb-active">Estúdio PPTX</span></li>`;
-        if (slideFilter !== 'TODOS') { html += `<li><i class="arrow-c-right-icon"></i></li><li><span class="breadcrumb-active">Slide ${escapeHtml(slideFilter)}</span></li>`; }
-      } else if (currentActiveTab === 'logs') {
-        html += `<li><span class="breadcrumb-active">Logs de Auditoria</span></li>`;
+        const isRootExplorer = (seg === 'TODOS' && area === 'TODAS' && !search);
+        html += `
+          <li>
+            <a href="#" onclick="resetFilters(); return false;" class="${isRootExplorer ? 'breadcrumb-active' : ''}">
+              🏛️ Mapa Organizacional
+            </a>
+          </li>
+        `;
+        if (seg !== 'TODOS') {
+          const isSegActive = (area === 'TODAS' && !search);
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <a href="#" onclick="clearAreaFilter(); return false;" class="${isSegActive ? 'breadcrumb-active' : ''}">
+                ${escapeHtml(seg)}
+              </a>
+            </li>
+          `;
+        }
+        if (area !== 'TODAS') {
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <span class="breadcrumb-active flex items-center gap-1.5">
+                <span>${escapeHtml(area)}</span>
+                <button type="button" onclick="clearAreaFilter()" class="text-rose-500 hover:text-rose-700 font-bold ml-1">✕</button>
+              </span>
+            </li>
+          `;
+        }
+        if (search) {
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <span class="breadcrumb-active flex items-center gap-1.5">
+                <span>Busca: "${escapeHtml(search)}"</span>
+                <button type="button" onclick="clearSearchFilter()" class="text-rose-500 hover:text-rose-700 font-bold ml-1">✕</button>
+              </span>
+            </li>
+          `;
+        }
+      } else {
+        const isRootUpdater = (slideFilter === 'TODOS' && !editShape);
+        html += `
+          <li>
+            <a href="#" onclick="clearSlideFilter(); return false;" class="${isRootUpdater ? 'breadcrumb-active' : ''}">
+              ⚡ Estúdio de Automação PPTX
+            </a>
+          </li>
+        `;
+        if (slideFilter !== 'TODOS') {
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <span class="breadcrumb-active flex items-center gap-1.5">
+                <span>Slide ${escapeHtml(slideFilter)}</span>
+                <button type="button" onclick="clearSlideFilter()" class="text-rose-500 hover:text-rose-700 font-bold ml-1">✕</button>
+              </span>
+            </li>
+          `;
+        }
+        if (editSlide && editShape) {
+          html += `
+            <li><i class="arrow-c-right-icon"></i></li>
+            <li>
+              <span class="breadcrumb-active">
+                ${currentEditorMode === 'ADD' ? '➕ Nova Caixa' : currentEditorMode === 'REMOVE' ? '🗑️ Excluir' : '✏️ Editar'} · Slide ${escapeHtml(editSlide)} (${escapeHtml(editShape)})
+              </span>
+            </li>
+          `;
+        }
       }
+
       bc.innerHTML = html;
     }
 
     async function safeParseJson(res) {
       const rawText = await res.text();
-      try { return JSON.parse(rawText); }
-      catch (e) { throw new Error(`Erro do Servidor (${res.status})`); }
+      try {
+        return JSON.parse(rawText);
+      } catch (e) {
+        const preview = rawText.replace(/<[^>]*>?/gm, '').trim().slice(0, 180);
+        throw new Error(`Erro do Servidor (${res.status}): ${preview || 'Resposta inválida.'}`);
+      }
     }
 
     function getEntityHeaderStyle(segmentoName) {
@@ -1261,7 +1417,7 @@
 
     function toggleDataUploadModal(show) {
       if (show && currentUserRole === 'VIEWER') {
-        showToast('Acesso Restrito', 'Apenas ADMIN ou EDITOR podem subir dados.');
+        alert('Apenas perfis ADMIN ou EDITOR podem subir uma nova base de dados.');
         return;
       }
       document.getElementById('data-upload-modal').classList.toggle('hidden', !show);
@@ -1269,6 +1425,7 @@
 
     function applyHeadcountResponse(json, isFullUnfiltered = false) {
       document.getElementById('datasource-badge').textContent = json.source;
+
       if (json.reference_date && json.reference_date !== '--/----') {
         document.getElementById('ref-date-input').value = json.reference_date;
       } else if (isFullUnfiltered) {
@@ -1278,9 +1435,11 @@
       if (json.default_label && json.default_label !== 'Base Não Identificada') {
         document.getElementById('header-ref-label').textContent = json.default_label;
         document.getElementById('pptx-ref-label').value = json.default_label;
-        document.getElementById('active-data-source-pill').textContent = `Fonte Ativa: ${json.default_label}`;
+        document.getElementById('active-data-source-pill').textContent =
+          `Fonte Ativa: ${json.source} · ${json.default_label}`;
       } else {
         document.getElementById('header-ref-label').textContent = 'Aguardando Base';
+        document.getElementById('active-data-source-pill').textContent = `Fonte: ${json.source}`;
       }
 
       const data = json.data;
@@ -1288,7 +1447,7 @@
 
       lastFilteredHierarchy = data.hierarchy || {};
       document.getElementById('kpi-total-hc').textContent = data.total_headcount;
-      document.getElementById('kpi-total-units').textContent = `${data.total_unidades} un`;
+      document.getElementById('kpi-total-units').textContent = `${data.total_unidades} unidades`;
 
       if (!fullHierarchyCache || isFullUnfiltered) {
         fullHierarchyCache = data.hierarchy;
@@ -1296,13 +1455,16 @@
 
         const segSelect = document.getElementById('filter-segmento');
         const currentSeg = segSelect.value;
-        segSelect.innerHTML = '<option value="TODOS">Todas as Diretorias e Entidades</option>';
+        segSelect.innerHTML = '<option value="TODOS">Todas as Diretorias e Entidades (Visão Completa)</option>';
         (data.available_segments || []).forEach(s => {
           const opt = document.createElement('option');
-          opt.value = s; opt.textContent = s;
+          opt.value = s;
+          opt.textContent = s;
           segSelect.appendChild(opt);
         });
-        if ((data.available_segments || []).includes(currentSeg)) { segSelect.value = currentSeg; }
+        if ((data.available_segments || []).includes(currentSeg)) {
+          segSelect.value = currentSeg;
+        }
       }
 
       const areaSelect = document.getElementById('filter-area');
@@ -1310,10 +1472,13 @@
       areaSelect.innerHTML = '<option value="TODAS">Todas as Superintendências</option>';
       (data.available_areas || []).forEach(a => {
         const opt = document.createElement('option');
-        opt.value = a; opt.textContent = a;
+        opt.value = a;
+        opt.textContent = a;
         areaSelect.appendChild(opt);
       });
-      if ((data.available_areas || []).includes(currentArea)) { areaSelect.value = currentArea; }
+      if ((data.available_areas || []).includes(currentArea)) {
+        areaSelect.value = currentArea;
+      }
 
       renderHierarchyCards(data.hierarchy || {});
       populateEditorQuickBoxSelect(parseInt(document.getElementById('editor-quick-slide')?.value || '1', 10));
@@ -1323,12 +1488,14 @@
     function filterHierarchyClientSide(segFilter, areaFilter, searchTerm) {
       if (!fullHierarchyCache) return null;
       const filteredHierarchy = {};
-      let totalHc = 0, totalUnits = 0;
+      let totalHc = 0;
+      let totalUnits = 0;
       const availableAreas = new Set();
       const term = (searchTerm || '').trim().toLowerCase();
 
       Object.entries(fullHierarchyCache).forEach(([segName, segObj]) => {
         if (segFilter && segFilter !== 'TODOS' && segName !== segFilter) return;
+
         const matchedAreas = {};
         let segTotal = 0;
 
@@ -1338,22 +1505,32 @@
 
           const matchedUnits = (areaObj.unidades || []).filter(u => {
             if (!term) return true;
-            return (u.unidade_des || '').toLowerCase().includes(term) ||
-                   areaName.toLowerCase().includes(term) ||
-                   segName.toLowerCase().includes(term) ||
-                   (u.manager || '').toLowerCase().includes(term);
+            return (
+              (u.unidade_des || '').toLowerCase().includes(term) ||
+              areaName.toLowerCase().includes(term) ||
+              segName.toLowerCase().includes(term) ||
+              (u.manager || '').toLowerCase().includes(term)
+            );
           });
 
           if (matchedUnits.length > 0) {
             const areaSubtotal = matchedUnits.reduce((acc, u) => acc + u.headcount, 0);
-            matchedAreas[areaName] = { ...areaObj, subtotal: areaSubtotal, unidades: matchedUnits };
+            matchedAreas[areaName] = {
+              ...areaObj,
+              subtotal: areaSubtotal,
+              unidades: matchedUnits
+            };
             segTotal += areaSubtotal;
             totalUnits += matchedUnits.length;
           }
         });
 
         if (Object.keys(matchedAreas).length > 0) {
-          filteredHierarchy[segName] = { ...segObj, total: segTotal, areas: matchedAreas };
+          filteredHierarchy[segName] = {
+            ...segObj,
+            total: segTotal,
+            areas: matchedAreas
+          };
           totalHc += segTotal;
         }
       });
@@ -1370,6 +1547,7 @@
     async function uploadAndSyncSpreadsheetFile(selectedFile) {
       const formData = new FormData();
       formData.append('data_file', selectedFile);
+
       const res = await fetch('/api/upload-headcount-data', { method: 'POST', body: formData });
       const json = await safeParseJson(res);
       if (!res.ok) throw new Error(json.detail || 'Erro ao carregar planilha.');
@@ -1380,52 +1558,47 @@
       document.getElementById('filter-search').value = '';
 
       applyHeadcountResponse(json, true);
-      pushSessionLog('UPLOAD', `Planilha carregada: ${selectedFile.name}`);
-      showToast('Base Carregada', `Planilha "${selectedFile.name}" sincronizada com sucesso.`);
+      document.getElementById('active-data-source-pill').textContent =
+        `Base Ativa: ${selectedFile.name} · Ref ${json.reference_date} (${json.total_headcount} contratos)`;
     }
 
     async function handleCustomDataUpload(event) {
       event.preventDefault();
       const fileInput = document.getElementById('custom-data-file-input');
       const btn = document.getElementById('btn-upload-data-submit');
+
       if (!fileInput.files.length) return;
       const selectedFile = fileInput.files[0];
 
       btn.disabled = true;
-      btn.textContent = 'Carregando...';
+      btn.textContent = 'Lendo Data e Contratos...';
 
       try {
         await uploadAndSyncSpreadsheetFile(selectedFile);
         toggleDataUploadModal(false);
       } catch (err) {
-        showToast('Erro', err.message);
+        alert(err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Carregar Base';
+        btn.textContent = 'Carregar e Atualizar Portal';
       }
     }
 
     function switchTab(tab) {
       if (tab === 'updater' && currentUserRole === 'VIEWER') {
-        showToast('Acesso Restrito', 'Apenas visualização.');
+        alert('O seu perfil (VIEWER) possui permissão exclusiva para visualização de Headcount.');
         return;
       }
       currentActiveTab = tab;
       document.getElementById('tab-explorer').classList.toggle('hidden', tab !== 'explorer');
       document.getElementById('tab-updater').classList.toggle('hidden', tab !== 'updater');
-      document.getElementById('tab-logs').classList.toggle('hidden', tab !== 'logs');
-
       document.getElementById('tab-btn-explorer').className = tab === 'explorer'
-        ? 'py-3 border-b-2 border-cni-pure text-cni-pure font-semibold text-xs flex items-center gap-1.5 transition'
-        : 'py-3 border-b-2 border-transparent text-slate-600 hover:text-cni-pure font-medium text-xs flex items-center gap-1.5 transition';
+        ? 'py-3.5 border-b-2 border-cni-pure text-cni-pure font-bold text-sm flex items-center gap-2 transition'
+        : 'py-3.5 border-b-2 border-transparent text-slate-500 hover:text-cni-pure font-semibold text-sm flex items-center gap-2 transition';
       document.getElementById('tab-btn-updater').className = tab === 'updater'
-        ? 'py-3 border-b-2 border-cni-pure text-cni-pure font-semibold text-xs flex items-center gap-1.5 transition'
-        : 'py-3 border-b-2 border-transparent text-slate-600 hover:text-cni-pure font-medium text-xs flex items-center gap-1.5 transition';
-      document.getElementById('tab-btn-logs').className = tab === 'logs'
-        ? 'py-3 border-b-2 border-cni-pure text-cni-pure font-semibold text-xs flex items-center gap-1.5 transition'
-        : 'py-3 border-b-2 border-transparent text-slate-600 hover:text-cni-pure font-medium text-xs flex items-center gap-1.5 transition';
+        ? 'py-3.5 border-b-2 border-cni-pure text-cni-pure font-bold text-sm flex items-center gap-2 transition'
+        : 'py-3.5 border-b-2 border-transparent text-slate-500 hover:text-cni-pure font-semibold text-sm flex items-center gap-2 transition';
 
-      if (tab === 'logs') { loadServerAuditLogs(); }
       renderBreadcrumb();
     }
 
@@ -1457,8 +1630,11 @@
 
     async function loadHeadcount(forceRefresh = false) {
       if (forceRefresh && currentUploadedDataFile) {
-        try { await uploadAndSyncSpreadsheetFile(currentUploadedDataFile); }
-        catch (err) { showToast('Erro', err.message); }
+        try {
+          await uploadAndSyncSpreadsheetFile(currentUploadedDataFile);
+        } catch (err) {
+          alert(err.message);
+        }
         return;
       }
 
@@ -1480,16 +1656,30 @@
         }
       }
 
-      const params = new URLSearchParams({ reference_date: refDate, segmento: seg, area: area, search: search, refresh: forceRefresh });
+      const params = new URLSearchParams({
+        reference_date: refDate,
+        segmento: seg,
+        area: area,
+        search: search,
+        refresh: forceRefresh
+      });
 
       try {
         const res = await fetch(`/api/headcount?${params.toString()}`);
-        if (res.status === 401) { document.getElementById('login-overlay').classList.remove('hidden'); return; }
+        if (res.status === 401) {
+          document.getElementById('login-overlay').classList.remove('hidden');
+          return;
+        }
         const json = await safeParseJson(res);
-        if (!res.ok) { showToast('Erro', json.detail || 'Erro ao consultar headcount.'); return; }
+        if (!res.ok) {
+          alert(json.detail || 'Erro ao consultar dados de Headcount.');
+          return;
+        }
         const isUnfiltered = (seg === 'TODOS' && area === 'TODAS' && !search);
         applyHeadcountResponse(json, isUnfiltered || forceRefresh);
-      } catch (err) { showToast('Erro', err.message); }
+      } catch (err) {
+        alert(err.message);
+      }
     }
 
     function updateEntityMacroKpis(hierarchy) {
@@ -1514,15 +1704,18 @@
 
     function setEditorActionMode(mode) {
       currentEditorMode = mode;
-      ['UPDATE', 'ADD', 'REMOVE'].forEach(m => {
+      const modes = ['UPDATE', 'ADD', 'REMOVE'];
+      modes.forEach(m => {
         const btn = document.getElementById(`mode-btn-${m}`);
         if (!btn) return;
         if (m === mode) {
-          btn.className = m === 'REMOVE' ? 'py-1.5 rounded bg-rose-600 text-white text-center font-bold'
-                        : m === 'ADD' ? 'py-1.5 rounded bg-emerald-600 text-white text-center font-bold'
-                        : 'py-1.5 rounded bg-cni-pure text-white text-center font-bold';
+          btn.className = m === 'REMOVE'
+            ? 'py-2 px-2 rounded-lg text-xs font-extrabold bg-rose-600 text-white shadow-xs transition'
+            : (m === 'ADD'
+              ? 'py-2 px-2 rounded-lg text-xs font-extrabold bg-emerald-600 text-white shadow-xs transition'
+              : 'py-2 px-2 rounded-lg text-xs font-extrabold bg-cni-pure text-white shadow-xs transition');
         } else {
-          btn.className = 'py-1.5 rounded text-slate-700 text-center transition';
+          btn.className = 'py-2 px-2 rounded-lg text-xs font-bold text-cni-dark hover:bg-white/60 transition';
         }
       });
 
@@ -1533,42 +1726,81 @@
 
       if (mode === 'REMOVE') {
         fieldsWrapper.classList.add('hidden');
-        step1Title.textContent = '1. Selecionar Caixa para Excluir';
-        queueBtn.textContent = '🗑️ Marcar Exclusão';
+        step1Title.textContent = '1. Selecionar Caixa para EXCLUIR do Slide';
+        queueBtn.textContent = '🗑️ Marcar Caixa para Exclusão';
       } else if (mode === 'ADD') {
         fieldsWrapper.classList.remove('hidden');
-        step1Title.textContent = '1. Selecionar Coluna Base';
-        lblArea.textContent = 'Nome da Nova Unidade';
-        queueBtn.textContent = '➕ Adicionar Nova';
+        step1Title.textContent = '1. Selecionar Coluna / Caixa Base para CLONAR abaixo';
+        lblArea.textContent = 'Nome da NOVA Gerência / Unidade a Criar';
+        queueBtn.textContent = '➕ Guardar Nova Caixa na Fila';
+        if (document.getElementById('edit-shape-id').value) {
+          document.getElementById('edit-area-name').value = '';
+          document.getElementById('edit-manager-name').value = '';
+          document.getElementById('edit-headcount').value = '1';
+        }
       } else {
         fieldsWrapper.classList.remove('hidden');
-        step1Title.textContent = '1. Selecionar Caixa';
-        lblArea.textContent = 'Nome da Área / Unidade';
-        queueBtn.textContent = '+ Guardar na Fila';
+        step1Title.textContent = '1. Selecionar Elemento para EDITAR';
+        lblArea.textContent = 'Nome da Área / Unidade no Slide';
+        queueBtn.textContent = '+ Guardar Edição na Fila';
       }
+
       onEditorFieldInput();
+      renderBreadcrumb();
     }
 
     function toggleAdvancedShapeInputs() {
-      document.getElementById('advanced-shape-inputs').classList.toggle('hidden');
+      const box = document.getElementById('advanced-shape-inputs');
+      if (box) box.classList.toggle('hidden');
     }
 
     function populateEditorQuickBoxSelect(slideNumber) {
       const sel = document.getElementById('editor-quick-box');
       if (!sel) return;
-      sel.innerHTML = '<option value="">Selecione no Slide ' + slideNumber + '...</option>';
+      sel.innerHTML = '<option value="">Selecione uma caixa do Slide ' + slideNumber + '...</option>';
+
       const options = [];
       if (currentAuditChanges && currentAuditChanges.length > 0) {
         currentAuditChanges.forEach((c, idx) => {
           if (Number(c.slide_index) === Number(slideNumber) && c.target_type !== 'DATA_BASE_REFERENCIA') {
             const parsed = parseBoxString(c.new_value);
-            options.push({ val: `AUDIT:${idx}`, label: `${parsed.areaName} [${parsed.hc !== null ? parsed.hc : '--'}]` });
+            const typeIcon = c.target_type === 'SUBTOTAL_AREA' ? '📊 Subtotal: '
+                           : c.target_type === 'TOTAL_DIRETORIA' ? '🏛️ Total: '
+                           : c.target_type === 'TOTAL_GERAL_CNI' ? '🌐 ' : '🏢 ';
+            options.push({
+              val: `AUDIT:${idx}`,
+              label: `${typeIcon}${parsed.areaName} ${parsed.mgrName} [${parsed.hc !== null ? parsed.hc : '--'}]`
+            });
           }
         });
       }
+
+      if (options.length === 0 && fullHierarchyCache) {
+        Object.entries(fullHierarchyCache).forEach(([segName, segObj]) => {
+          Object.entries(segObj.areas || {}).forEach(([areaName, areaObj]) => {
+            (areaObj.unidades || []).forEach(u => {
+              if (Number(u.slide_number || segObj.slide_number || 1) === Number(slideNumber) && u.shape_key) {
+                options.push({
+                  val: JSON.stringify({
+                    slide: slideNumber,
+                    shape: u.shape_key,
+                    area: u.unidade_des,
+                    mgr: u.manager || '',
+                    hc: u.headcount,
+                    meta: `${segName} › ${areaName}`
+                  }),
+                  label: `🏢 ${u.unidade_des} ${u.manager || ''} [${u.headcount}]`
+                });
+              }
+            });
+          });
+        });
+      }
+
       options.forEach(o => {
         const opt = document.createElement('option');
-        opt.value = o.val; opt.textContent = o.label;
+        opt.value = o.val;
+        opt.textContent = o.label;
         sel.appendChild(opt);
       });
     }
@@ -1584,7 +1816,24 @@
       const val = document.getElementById('editor-quick-box').value;
       if (!val) return;
       if (val.startsWith('AUDIT:')) {
-        loadRowIntoEditor(parseInt(val.split(':')[1], 10), currentEditorMode);
+        const idx = parseInt(val.split(':')[1], 10);
+        loadRowIntoEditor(idx, currentEditorMode);
+      } else {
+        try {
+          const obj = JSON.parse(val);
+          setEditorFormValues(
+            obj.slide,
+            obj.shape,
+            currentEditorMode === 'ADD' ? '' : obj.area,
+            currentEditorMode === 'ADD' ? '' : obj.mgr,
+            currentEditorMode === 'ADD' ? 1 : obj.hc,
+            obj.meta,
+            'HEADCOUNT_UNIDADE'
+          );
+          if (currentEditorMode !== 'ADD') {
+            currentEditingBaselineHc = obj.hc;
+          }
+        } catch (e) {}
       }
       renderSlidePreviewCanvas(currentPreviewSlideNumber);
     }
@@ -1596,8 +1845,10 @@
       document.getElementById('edit-area-name').value = areaName || '';
       document.getElementById('edit-manager-name').value = mgrName || '';
       document.getElementById('edit-headcount').value = hc !== null && hc !== undefined ? hc : '';
+
       currentEditingBaselineHc = hc !== null && hc !== undefined && hc !== '' ? Number(hc) : null;
       currentEditingMeta = { hierarchyLabel: hierarchyLabel || '', targetType: targetType || 'HEADCOUNT_UNIDADE' };
+
       populateEditorQuickBoxSelect(slideIdx || 1);
       onEditorFieldInput();
       renderBreadcrumb();
@@ -1605,7 +1856,8 @@
 
     function stepEditorHeadcount(delta) {
       const hcInput = document.getElementById('edit-headcount');
-      hcInput.value = Math.max(0, parseInt(hcInput.value || '0', 10) + delta);
+      const curr = parseInt(hcInput.value || '0', 10);
+      hcInput.value = Math.max(0, curr + delta);
       onEditorFieldInput();
     }
 
@@ -1617,49 +1869,77 @@
       const hcRaw = document.getElementById('edit-headcount').value.trim();
 
       const ctxPill = document.getElementById('editor-context-pill');
-      if (slideIdx && shapeId) { ctxPill.textContent = `Slide ${slideIdx} · ${shapeId}`; }
-      else { ctxPill.textContent = 'Nenhum selecionado'; }
+      const hierPill = document.getElementById('editor-hierarchy-pill');
+      if (slideIdx && shapeId) {
+        ctxPill.textContent = `Slide ${slideIdx} · Shape ${shapeId}`;
+      } else {
+        ctxPill.textContent = 'Nenhum elemento selecionado';
+      }
+      hierPill.textContent = currentEditingMeta.hierarchyLabel || '';
 
-      if (mgrName && !mgrName.startsWith('(')) { mgrName = `(${mgrName})`; }
+      let formattedMgr = mgrName;
+      if (formattedMgr && !formattedMgr.startsWith('(')) {
+        formattedMgr = `(${formattedMgr})`;
+      }
 
       const deltaBadge = document.getElementById('live-delta-badge');
       const cascadeNote = document.getElementById('live-cascade-impact-note');
+      const miniCard = document.getElementById('preview-mini-card');
 
       if (currentEditorMode === 'REMOVE') {
-        document.getElementById('preview-box-area').textContent = `Excluir: ${areaName || shapeId || 'Selecionada'}`;
-        document.getElementById('preview-box-manager').textContent = 'Compactação automática.';
+        miniCard.className = 'bg-rose-50 border-l-4 border-rose-600 border border-rose-200 rounded-lg p-2.5 flex justify-between items-center gap-3';
+        document.getElementById('preview-box-area').textContent = `🗑️ EXCLUIR: ${areaName || shapeId || 'Selecione uma caixa'}`;
+        document.getElementById('preview-box-manager').textContent = 'A caixa será removida e a coluna alinhada.';
         document.getElementById('preview-box-hc').textContent = '0';
+
+        const remHc = currentEditingBaselineHc || 0;
         deltaBadge.classList.remove('hidden');
-        deltaBadge.className = 'text-[9px] font-bold px-2 py-0.5 rounded bg-rose-600 text-white';
-        deltaBadge.textContent = 'Exclusão';
+        deltaBadge.className = 'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-600 text-white';
+        deltaBadge.textContent = `Exclusão (-${remHc} contratos)`;
+
         cascadeNote.classList.remove('hidden');
-        cascadeNote.innerHTML = `🗑️ <b>Remoção:</b> A caixa será excluída e os subtotais recalculados em cascata.`;
+        cascadeNote.innerHTML = `🗑️ <b>Remoção + Alinhamento Automático:</b> A caixa será excluída do slide, as gerências abaixo subirão na coluna e <b>-${remHc}</b> contratos serão subtraídos do Subtotal da Superintendência, da Diretoria e do Total Geral CNI.`;
         return;
       }
 
-      document.getElementById('preview-box-area').textContent = areaName || 'Nova Área';
-      document.getElementById('preview-box-manager').textContent = mgrName || '(Gestor)';
+      miniCard.className = 'bg-white border-l-4 border-cni-pure border border-slate-200 rounded-lg p-2.5 shadow-2xs flex justify-between items-center gap-3';
+      document.getElementById('preview-box-area').textContent = areaName || (currentEditorMode === 'ADD' ? 'Digite o nome da Nova Unidade...' : 'Nome da Unidade / Área');
+      document.getElementById('preview-box-manager').textContent = formattedMgr || (currentEditorMode === 'ADD' ? '(Definir Gestor)' : '');
       document.getElementById('preview-box-hc').textContent = hcRaw !== '' ? hcRaw : '--';
 
       if (currentEditorMode === 'ADD') {
+        const addHc = parseInt(hcRaw || '0', 10);
         deltaBadge.classList.remove('hidden');
-        deltaBadge.className = 'text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white';
-        deltaBadge.textContent = 'Nova Caixa';
+        deltaBadge.className = 'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white';
+        deltaBadge.textContent = `Nova Caixa (+${addHc} contratos)`;
         cascadeNote.classList.remove('hidden');
-        cascadeNote.innerHTML = `➕ <b>Clonagem:</b> Inserida na coluna com recálculo em cascata.`;
+        cascadeNote.innerHTML = `➕ <b>Clonagem na Coluna (+${addHc}):</b> Uma nova caixa com o padrão visual da CNI será inserida abaixo da coluna selecionada e somará <b>+${addHc}</b> ao Subtotal da Superintendência, Diretoria e Total Geral.`;
         return;
       }
 
       if (hcRaw !== '' && currentEditingBaselineHc !== null) {
-        const diff = parseInt(hcRaw, 10) - currentEditingBaselineHc;
+        const newHc = parseInt(hcRaw, 10);
+        const diff = newHc - currentEditingBaselineHc;
         const diffSign = diff > 0 ? `+${diff}` : `${diff}`;
+
         deltaBadge.classList.remove('hidden');
-        deltaBadge.className = diff !== 0 ? 'text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white' : 'text-[9px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700';
-        deltaBadge.textContent = `Δ ${diffSign}`;
+        if (diff > 0) {
+          deltaBadge.className = 'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white';
+          deltaBadge.textContent = `Anterior: ${currentEditingBaselineHc} ➔ Novo: ${newHc} (${diffSign})`;
+        } else if (diff < 0) {
+          deltaBadge.className = 'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-600 text-white';
+          deltaBadge.textContent = `Anterior: ${currentEditingBaselineHc} ➔ Novo: ${newHc} (${diffSign})`;
+        } else {
+          deltaBadge.className = 'text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700';
+          deltaBadge.textContent = `Mantido: ${newHc} (Δ 0)`;
+        }
+
         if (diff !== 0) {
           cascadeNote.classList.remove('hidden');
-          cascadeNote.innerHTML = `⚡ <b>Cascata (${diffSign}):</b> Subtotais e total CNI serão atualizados.`;
-        } else { cascadeNote.classList.add('hidden'); }
+          cascadeNote.innerHTML = `⚡ <b>Impacto em Cascata Automático (${diffSign}):</b> Ao aplicar, o <b>Subtotal da Superintendência</b>, o <b>Total da Diretoria</b> e o <b>Total Geral CNI</b> serão ajustados em <b>${diffSign}</b> contratos nos slides.`;
+        } else {
+          cascadeNote.classList.add('hidden');
+        }
       } else {
         deltaBadge.classList.add('hidden');
         cascadeNote.classList.add('hidden');
@@ -1672,28 +1952,47 @@
       document.getElementById('edit-area-name').value = '';
       document.getElementById('edit-manager-name').value = '';
       document.getElementById('edit-headcount').value = '';
+      document.getElementById('editor-quick-box').value = '';
       currentEditingBaselineHc = null;
+      currentEditingMeta = { hierarchyLabel: '', targetType: '' };
       onEditorFieldInput();
+      renderBreadcrumb();
     }
 
     function jumpToSlideEditor(slideNumber, shapeKey, unitName, managerName, hc, hierarchyLabel = '') {
-      if (currentUserRole === 'VIEWER') { showToast('Acesso Restrito', 'Apenas visualização.'); return; }
+      if (currentUserRole === 'VIEWER') {
+        alert('O seu perfil (VIEWER) possui permissão exclusiva para visualização de Headcount.');
+        return;
+      }
       switchTab('updater');
       setEditorActionMode('UPDATE');
       setPreviewSlide(slideNumber || 1);
       setEditorFormValues(slideNumber || 1, shapeKey || '', unitName || '', managerName || '', hc, hierarchyLabel, 'HEADCOUNT_UNIDADE');
-      document.getElementById('live-editor-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      const editorCard = document.getElementById('live-editor-card');
+      if (editorCard) {
+        editorCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        editorCard.classList.add('ring-4', 'ring-cni-pure/40');
+        setTimeout(() => editorCard.classList.remove('ring-4', 'ring-cni-pure/40'), 1400);
+      }
+      document.getElementById('edit-headcount').focus();
     }
 
     function renderHierarchyCards(hierarchy) {
       const container = document.getElementById('hierarchy-container');
       container.innerHTML = '';
+
       const entries = Object.entries(hierarchy || {});
       if (entries.length === 0) {
         container.innerHTML = `
-          <div class="bg-white rounded-lg border border-slate-200 p-6 text-center space-y-2 text-xs">
-            <div class="font-bold text-slate-800">Nenhuma base carregada</div>
-            <p class="text-slate-500">Clique em <b>"Subir Base"</b> no topo para iniciar.</p>
+          <div class="bg-white rounded-2xl border border-cni-lighter p-8 text-center space-y-3">
+            <div class="text-base font-bold text-cni-dark">Nenhuma base carregada no momento</div>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">
+              Clique no botão <b>"📤 Subir Base (.xlsx/.csv)"</b> no topo direito para anexar a planilha extraída do Databricks.
+            </p>
+            <div>
+              <button type="button" onclick="toggleDataUploadModal(true)" class="btn portal-btn primary btn-small">📤 Subir Planilha Agora</button>
+            </div>
           </div>
         `;
         return;
@@ -1701,10 +2000,10 @@
 
       entries.forEach(([segName, segObj]) => {
         const card = document.createElement('div');
-        card.className = 'bg-white rounded-lg shadow-2xs border border-slate-200 overflow-hidden text-xs';
+        card.className = 'bg-white rounded-2xl shadow-sm border border-cni-lighter/90 overflow-hidden';
         const safeSeg = (segName || '').replace(/'/g, "\\'");
-        let areasHtml = '';
 
+        let areasHtml = '';
         Object.entries(segObj.areas).forEach(([areaName, areaObj]) => {
           const safeArea = (areaName || '').replace(/'/g, "\\'");
           const metaHierarchy = `${safeSeg} › ${safeArea}`;
@@ -1713,50 +2012,104 @@
 
           const headHtml = headUnits.map(u => `
             <div onclick="jumpToSlideEditor(${u.slide_number || segObj.slide_number || 1}, '${(u.shape_key || '').replace(/'/g, "\\'")}', '${(u.unidade_des || '').replace(/'/g, "\\'")}', '${(u.manager || '').replace(/'/g, "\\'")}', ${u.headcount}, '${metaHierarchy}')"
-                 class="cursor-pointer bg-slate-900 hover:bg-cni-pure text-white rounded p-2.5 mb-2 flex justify-between items-center transition">
-              <div>
-                <span class="text-[9px] uppercase tracking-wider bg-white/20 px-1.5 py-0.5 rounded font-semibold">
-                  ${u.role === 'DIRETORIA_CABECA' ? 'Diretoria' : 'Superintendência'}
-                </span>
-                <div class="font-bold mt-1">${u.unidade_des}</div>
-                ${u.manager ? `<div class="text-[10px] text-slate-300">${u.manager}</div>` : ''}
+                 class="cursor-pointer bg-gradient-to-r from-cni-dark to-cni-pure hover:from-cni-pure hover:to-cni-medium text-white rounded-xl p-3 shadow-xs flex justify-between items-center mb-2.5 transition group">
+              <div class="pr-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[9px] uppercase tracking-wider bg-white/15 text-cni-lightest px-1.5 py-0.5 rounded font-bold">
+                    ${u.role === 'DIRETORIA_CABECA' ? 'Gabinete Diretoria' : 'Titular Superintendência'}
+                  </span>
+                  <span class="text-[10px] text-white/90 bg-white/15 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition">✏️ Editar no Slide ${u.slide_number || segObj.slide_number || 1}</span>
+                </div>
+                <div class="text-xs font-bold leading-snug mt-1">${u.unidade_des}</div>
+                ${u.manager ? `<div class="text-[11px] text-cni-lighter font-medium mt-0.5">${u.manager}</div>` : ''}
               </div>
-              <span class="bg-white text-slate-900 font-bold px-2 py-0.5 rounded text-xs">${u.headcount}</span>
+              <div class="flex flex-col items-end">
+                <span class="bg-white text-cni-dark font-extrabold text-sm px-2.5 py-1 rounded-lg shadow-xs min-w-[34px] text-center">
+                  ${u.headcount}
+                </span>
+              </div>
             </div>
           `).join('');
 
-          const childrenHtml = childUnits.map(u => `
-            <div onclick="jumpToSlideEditor(${u.slide_number || segObj.slide_number || 1}, '${(u.shape_key || '').replace(/'/g, "\\'")}', '${(u.unidade_des || '').replace(/'/g, "\\'")}', '${(u.manager || '').replace(/'/g, "\\'")}', ${u.headcount}, '${metaHierarchy}')"
-                 class="cursor-pointer bg-slate-50 hover:border-cni-pure border border-slate-200 rounded p-2 flex justify-between items-center transition">
-              <div>
-                <div class="font-semibold text-slate-800">${u.unidade_des}</div>
-                ${u.manager ? `<span class="text-[10px] text-slate-500">${u.manager}</span>` : ''}
+          const childrenHtml = childUnits.map(u => {
+            const barWidth = Math.max(6, Math.round((u.headcount / (areaObj.subtotal || 1)) * 100));
+            return `
+              <div class="relative pl-4 before:content-[''] before:absolute before:left-1.5 before:top-0 before:bottom-0 before:w-0.5 before:bg-cni-pure/20">
+                <div onclick="jumpToSlideEditor(${u.slide_number || segObj.slide_number || 1}, '${(u.shape_key || '').replace(/'/g, "\\'")}', '${(u.unidade_des || '').replace(/'/g, "\\'")}', '${(u.manager || '').replace(/'/g, "\\'")}', ${u.headcount}, '${metaHierarchy}')"
+                     class="cursor-pointer group relative before:content-[''] before:absolute before:-left-2.5 before:top-1/2 before:w-2.5 before:h-0.5 before:bg-cni-pure/20 bg-white border border-slate-200/90 hover:border-cni-pure rounded-xl p-2.5 shadow-2xs transition">
+                  <div class="flex justify-between items-start gap-2">
+                    <div class="pr-1">
+                      <div class="text-xs text-slate-800 font-semibold leading-snug group-hover:text-cni-pure transition">
+                        ${u.unidade_des}
+                      </div>
+                      ${u.manager ? `<span class="inline-block text-[11px] text-slate-500 italic mt-0.5">${u.manager}</span>` : ''}
+                      <span class="block text-[10px] font-bold text-cni-pure opacity-0 group-hover:opacity-100 transition mt-0.5">
+                        ✏️ Editar no Slide ${u.slide_number || segObj.slide_number || 1} ➔
+                      </span>
+                    </div>
+                    <span class="font-extrabold text-xs text-cni-pure bg-cni-lightest border border-cni-lighter px-2.5 py-1 rounded-lg min-w-[32px] text-center">
+                      ${u.headcount}
+                    </span>
+                  </div>
+                  <div class="w-full bg-cni-lightest h-1 rounded-full mt-2 overflow-hidden">
+                    <div class="bg-portal-pure h-full rounded-full" style="width: ${barWidth}%"></div>
+                  </div>
+                </div>
               </div>
-              <span class="font-bold text-cni-pure bg-white border border-slate-200 px-2 py-0.5 rounded">${u.headcount}</span>
-            </div>
-          `).join('');
+            `;
+          }).join('');
+
+          const badgeType = areaObj.is_direct_staff
+            ? '<span class="text-[9px] font-bold uppercase bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Staff Direto</span>'
+            : '<span class="text-[9px] font-bold uppercase bg-cni-lightest text-cni-pure px-2 py-0.5 rounded">Superintendência</span>';
 
           areasHtml += `
-            <div class="border border-slate-200 rounded-lg p-3 bg-white space-y-2">
-              <div onclick="drillDownArea('${safeSeg}', '${safeArea}')" class="cursor-pointer flex justify-between items-center border-b border-slate-100 pb-2">
-                <span class="font-bold text-slate-900 uppercase">${areaName}</span>
-                <span class="font-bold text-cni-pure text-sm">${areaObj.subtotal}</span>
+            <div class="border border-cni-lighter/80 rounded-2xl p-4 bg-[#F8FAFC] flex flex-col justify-between hover:shadow-xs transition">
+              <div>
+                <div onclick="drillDownArea('${safeSeg}', '${safeArea}')"
+                     class="cursor-pointer flex justify-between items-start gap-2 border-b border-slate-200 pb-2.5 mb-3 group">
+                  <div>
+                    <div class="flex items-center gap-1.5">
+                      ${badgeType}
+                      <span class="text-[10px] text-cni-pure font-semibold opacity-0 group-hover:opacity-100 transition">🔍 Filtrar área</span>
+                    </div>
+                    <h4 class="font-extrabold text-xs text-cni-dark group-hover:text-cni-pure uppercase mt-1 leading-snug transition">${areaName}</h4>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Subtotal</span>
+                    <span class="text-sm font-extrabold text-cni-pure">${areaObj.subtotal}</span>
+                  </div>
+                </div>
+                ${headHtml}
+                <div class="space-y-2 mt-2">${childrenHtml}</div>
               </div>
-              ${headHtml}
-              <div class="space-y-1.5">${childrenHtml}</div>
             </div>
           `;
         });
 
         card.innerHTML = `
-          <div class="${getEntityHeaderStyle(segName)} text-white px-5 py-3 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-              <span class="bg-white/20 px-2 py-0.5 rounded font-mono text-[11px] font-bold">Slide ${segObj.slide_number || 1}</span>
-              <h3 class="font-bold text-sm">${segName}</h3>
+          <div class="${getEntityHeaderStyle(segName)} text-white px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="openSlideInUpdater(${segObj.slide_number || 1})"
+                      class="bg-white/15 hover:bg-white/30 text-white font-mono text-xs font-bold px-2.5 py-1 rounded-lg border border-white/20 transition cursor-pointer">
+                ⚡ Slide ${segObj.slide_number || 1}
+              </button>
+              <div onclick="drillDownSegment('${safeSeg}')" class="cursor-pointer group">
+                <span class="text-[10px] uppercase tracking-widest text-white/75 font-semibold block">Diretoria / Entidade (Clique para focar 🔍)</span>
+                <h3 class="font-extrabold text-base md:text-lg tracking-tight group-hover:underline">${segName}</h3>
+              </div>
             </div>
-            <span class="bg-white text-slate-900 font-bold px-3 py-1 rounded text-xs">Total: ${segObj.total}</span>
+            <div class="flex items-center gap-3 self-end sm:self-center">
+              <button type="button" onclick="drillDownSegment('${safeSeg}')"
+                      class="text-xs bg-white/10 hover:bg-white/20 text-white font-semibold px-3 py-1 rounded-lg border border-white/15 transition">
+                🔍 Isolar Diretoria (${Object.keys(segObj.areas).length} áreas)
+              </button>
+              <span class="bg-white text-cni-dark text-sm font-extrabold px-4 py-1.5 rounded-full shadow-sm">
+                Total: ${segObj.total}
+              </span>
+            </div>
           </div>
-          <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">${areasHtml}</div>
+          <div class="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">${areasHtml}</div>
         `;
         container.appendChild(card);
       });
@@ -1768,14 +2121,24 @@
       Object.entries(lastFilteredHierarchy).forEach(([segName, segObj]) => {
         Object.entries(segObj.areas).forEach(([areaName, areaObj]) => {
           areaObj.unidades.forEach(u => {
-            rows.push([`"${refVal}"`, `"${segName}"`, `"${areaName}"`, `"${u.unidade_des}"`, `"${u.manager || ''}"`, u.headcount]);
+            rows.push([
+              `"${refVal}"`,
+              `"${segName}"`,
+              `"${areaName}"`,
+              `"${u.unidade_des}"`,
+              `"${u.manager || ''}"`,
+              u.headcount
+            ]);
           });
         });
       });
-      const blob = new Blob(['\uFEFF' + rows.map(r => r.join(';')).join('\n')], { type: 'text/csv;charset=utf-8;' });
+
+      const csvContent = '\uFEFF' + rows.map(r => r.join(';')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
-      a.download = `Headcount_${refVal.replace('/', '_')}.csv`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Headcount_Sistema_Industria_${refVal.replace('/', '_')}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -1785,7 +2148,8 @@
       let numMatch = raw.match(/\[(\d+)\]\s*$/);
       let hc = numMatch ? parseInt(numMatch[1], 10) : (raw.match(/^\d+$/) ? parseInt(raw, 10) : null);
       let textPart = raw.replace(/\[\d+\]\s*$/, '').trim();
-      let areaName = textPart, mgrName = '';
+      let areaName = textPart;
+      let mgrName = '';
       if (textPart.includes('(')) {
         const pIdx = textPart.indexOf('(');
         areaName = textPart.substring(0, pIdx).trim();
@@ -1797,20 +2161,49 @@
     function loadRowIntoEditor(index, modeOverride = 'UPDATE') {
       const item = currentAuditChanges[index];
       if (!item) return;
+
       setEditorActionMode(modeOverride);
       const parsedNew = parseBoxString(item.new_value);
       const parsedOld = parseBoxString(item.old_value);
       const baseHc = parsedNew.hc !== null ? parsedNew.hc : parsedOld.hc;
-      setEditorFormValues(item.slide_index, item.shape_id, modeOverride === 'ADD' ? '' : parsedNew.areaName, modeOverride === 'ADD' ? '' : parsedNew.mgrName, modeOverride === 'ADD' ? 1 : (parsedNew.hc !== null ? parsedNew.hc : ''), item.message || '', item.target_type);
+
+      setEditorFormValues(
+        item.slide_index,
+        item.shape_id,
+        modeOverride === 'ADD' ? '' : parsedNew.areaName,
+        modeOverride === 'ADD' ? '' : parsedNew.mgrName,
+        modeOverride === 'ADD' ? 1 : (parsedNew.hc !== null ? parsedNew.hc : ''),
+        item.message || '',
+        item.target_type
+      );
       currentEditingBaselineHc = baseHc;
       onEditorFieldInput();
+
       currentPreviewSlideNumber = Number(item.slide_index) || 1;
-      setPreviewSlide(currentPreviewSlideNumber);
+      document.getElementById('preview-slide-selector').value = String(currentPreviewSlideNumber);
+      renderSlidePreviewCanvas(currentPreviewSlideNumber);
     }
 
     function quickQueueRemoveFromAudit(index) {
       loadRowIntoEditor(index, 'REMOVE');
       addManualOverride();
+    }
+
+    function loadOverrideBackIntoEditor(idx) {
+      const o = manualOverrides[idx];
+      if (!o) return;
+      setEditorActionMode(o.action || 'UPDATE');
+      setEditorFormValues(
+        o.slide_index,
+        o.shape_id,
+        o.new_area_name || '',
+        o.new_manager || '',
+        o.new_number !== null ? o.new_number : '',
+        o.hierarchy_label || '',
+        'HEADCOUNT_UNIDADE'
+      );
+      currentEditingBaselineHc = o.baseline_hc !== undefined ? o.baseline_hc : null;
+      onEditorFieldInput();
     }
 
     function collectCurrentEditorOverride(silent = false) {
@@ -1821,54 +2214,64 @@
       const hc = document.getElementById('edit-headcount').value.trim();
 
       if (!slideIdx || !shapeId) {
-        if (!silent) { showToast('Atenção', 'Selecione uma caixa no Preview ou indique o ID.'); }
+        if (!silent) {
+          alert('Clique em uma caixa no Preview 16:9 ou selecione no menu acima primeiro.');
+        }
         return null;
       }
-      if (currentEditorMode === 'ADD' && !areaName) {
-        if (!silent) { showToast('Atenção', 'Informe o nome da nova unidade.'); }
-        return null;
-      }
-      if (mgrName && !mgrName.startsWith('(')) { mgrName = `(${mgrName})`; }
 
-      const ov = {
+      if (currentEditorMode === 'ADD' && !areaName) {
+        if (!silent) {
+          alert('Digite o Nome da Nova Gerência / Unidade que deseja adicionar na coluna.');
+        }
+        return null;
+      }
+
+      if (mgrName && !mgrName.startsWith('(')) {
+        mgrName = `(${mgrName})`;
+      }
+
+      return {
         action: currentEditorMode,
         slide_index: parseInt(slideIdx, 10),
         shape_id: shapeId,
         new_area_name: areaName || null,
         new_manager: mgrName || null,
         new_number: currentEditorMode === 'REMOVE' ? '0' : (hc !== '' ? hc : null),
-        baseline_hc: currentEditingBaselineHc
+        baseline_hc: currentEditingBaselineHc,
+        hierarchy_label: currentEditingMeta.hierarchyLabel || ''
       };
-
-      const actDesc = currentEditorMode === 'ADD' ? `Adicionada "${areaName || shapeId}" (Slide ${slideIdx})`
-                    : currentEditorMode === 'REMOVE' ? `Excluída (${shapeId}) (Slide ${slideIdx})`
-                    : `Editada "${areaName || shapeId}" (Slide ${slideIdx}) [HC: ${hc}]`;
-      pushSessionLog(currentEditorMode, actDesc);
-      return ov;
     }
 
     function addManualOverride(silent = false) {
       const ov = collectCurrentEditorOverride(silent);
       if (!ov) return false;
+
       if (ov.action !== 'ADD') {
-        manualOverrides = manualOverrides.filter(o => !(o.slide_index == ov.slide_index && o.shape_id === ov.shape_id && o.action !== 'ADD'));
+        manualOverrides = manualOverrides.filter(
+          o => !(o.slide_index == ov.slide_index && o.shape_id === ov.shape_id && o.action !== 'ADD')
+        );
       }
       manualOverrides.push(ov);
+
       renderOverridesList();
-      showToast('Sucesso', 'Modificação adicionada à fila.');
+      renderBreadcrumb();
       return true;
     }
 
     async function applyAndRegeneratePptx() {
       const slideIdx = document.getElementById('edit-slide-idx').value.trim();
       const shapeId = document.getElementById('edit-shape-id').value.trim();
-      if (slideIdx && shapeId) { addManualOverride(true); }
+      if (slideIdx && shapeId) {
+        addManualOverride(true);
+      }
       await handlePptxUpdate(null);
     }
 
     function clearManualOverrides() {
       manualOverrides = [];
       renderOverridesList();
+      renderBreadcrumb();
     }
 
     function removeOverride(idx) {
@@ -1878,17 +2281,40 @@
 
     function renderOverridesList() {
       const container = document.getElementById('overrides-list');
-      document.getElementById('override-count-badge').textContent = `${manualOverrides.length} na fila`;
+      document.getElementById('override-count-badge').textContent = `${manualOverrides.length} ajustes na fila`;
+
       if (manualOverrides.length === 0) {
-        container.innerHTML = 'Nenhuma edição na fila.';
+        container.innerHTML = 'Nenhuma edição manual adicionada.';
         return;
       }
-      container.innerHTML = manualOverrides.map((o, idx) => `
-        <div class="bg-slate-50 border border-slate-200 rounded p-1.5 flex justify-between items-center text-xs">
-          <div><span class="font-bold text-cni-pure">Slide ${o.slide_index}</span>: ${escapeHtml(o.new_area_name || o.action)}</div>
-          <button type="button" onclick="removeOverride(${idx})" class="text-rose-600 font-bold px-1.5">✕</button>
-        </div>
-      `).join('');
+
+      container.innerHTML = manualOverrides.map((o, idx) => {
+        const act = o.action || 'UPDATE';
+        let actBadge = '<span class="bg-cni-pure text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded">✏️ EDITAR</span>';
+        if (act === 'ADD') {
+          actBadge = '<span class="bg-emerald-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded">➕ NOVA CAIXA</span>';
+        } else if (act === 'REMOVE') {
+          actBadge = '<span class="bg-rose-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded">🗑️ EXCLUIR</span>';
+        }
+
+        return `
+          <div class="bg-cni-lightest/60 border border-cni-lighter rounded-lg p-2.5 flex justify-between items-center not-italic text-slate-700 hover:border-cni-pure transition">
+            <div class="cursor-pointer flex-1 pr-2" onclick="loadOverrideBackIntoEditor(${idx})">
+              <div class="flex items-center gap-1.5">
+                ${actBadge}
+                <span class="font-bold text-cni-dark">Slide ${o.slide_index}</span>
+                <code class="text-[10px] bg-white px-1.5 py-0.2 rounded border border-slate-200">${o.shape_id}</code>
+              </div>
+              <div class="text-xs font-bold text-slate-900 mt-0.5 leading-snug">
+                ${escapeHtml(o.new_area_name || (act === 'REMOVE' ? 'Remover caixa selecionada' : ''))}
+                <span class="text-cni-pure font-semibold">${escapeHtml(o.new_manager || '')}</span>
+                ${o.new_number !== null ? `<span class="text-[10px] font-extrabold text-cni-dark ml-1">[HC: ${o.new_number}]</span>` : ''}
+              </div>
+            </div>
+            <button type="button" onclick="removeOverride(${idx})" class="text-rose-500 hover:text-rose-700 font-bold px-2">✕</button>
+          </div>
+        `;
+      }).join('');
     }
 
     async function handlePptxUpdate(event) {
@@ -1902,29 +2328,47 @@
       const progressStatus = document.getElementById('pptx-progress-status');
       const progressStage = document.getElementById('pptx-progress-stage');
 
-      if (!fileInput.files.length) { showToast('Atenção', 'Selecione o arquivo .pptx base.'); return; }
+      if (!fileInput.files.length) {
+        alert('Selecione o arquivo .pptx base primeiro para iniciar o carregamento.');
+        return;
+      }
 
       const formData = new FormData();
       formData.append('file', fileInput.files[0]);
-      if (currentUploadedDataFile) { formData.append('data_file', currentUploadedDataFile); }
+      if (currentUploadedDataFile) {
+        formData.append('data_file', currentUploadedDataFile);
+      }
       formData.append('reference_date', refDate);
       formData.append('reference_label', refLabel);
       formData.append('custom_overrides_json', JSON.stringify(manualOverrides));
       formData.append('auto_layout', autoLayout);
 
       progressWrapper.classList.remove('hidden');
-      progressStatus.textContent = `Processando apresentação...`;
-      progressStage.textContent = '1/3 · Atualizando XML';
+      progressStatus.textContent = `Processando "${fileInput.files[0].name}" (${refLabel || 'Data automática'})...`;
+      progressStage.textContent = '1/3 · Lendo XML e mapeando Shapes';
       progress_bar(0, 45, '#progressbar21', true);
+
       btn.disabled = true;
+      btn.textContent = 'Processando XML, Recalculando Cascata e Gerando Preview 16:9...';
+
+      const stageTimeout = setTimeout(() => {
+        progressStage.textContent = '2/3 · Recalculando Subtotais de Superintendência e Diretorias';
+        progress_bar(45, 85, '#progressbar21', true);
+      }, 600);
 
       try {
         const res = await fetch('/api/update-pptx', { method: 'POST', body: formData });
-        if (res.status === 401) { document.getElementById('login-overlay').classList.remove('hidden'); return; }
-        const json = await safeParseJson(res);
-        if (!res.ok) throw new Error(json.detail || 'Erro ao processar PPTX.');
+        clearTimeout(stageTimeout);
 
-        progressStage.textContent = '3/3 · Pronto!';
+        if (res.status === 401) {
+          document.getElementById('login-overlay').classList.remove('hidden');
+          return;
+        }
+        const json = await safeParseJson(res);
+        if (!res.ok) throw new Error(json.detail || 'Erro ao processar PowerPoint.');
+
+        progressStage.textContent = '3/3 · Concluído com sucesso!';
+        progressStatus.textContent = `Apresentação "${json.download_filename}" pronta para download.`;
         progress_bar(85, 100, '#progressbar21', true);
 
         const rep = json.report;
@@ -1941,17 +2385,28 @@
         document.getElementById('rep-updated').textContent = rep.updated_count;
         document.getElementById('rep-conflicts').textContent = rep.conflict_count;
 
-        pushSessionLog('GERAR PPTX', `Gerado "${json.download_filename}" (${rep.total_company_headcount} contratos)`);
-        showToast('Sucesso', 'Apresentação gerada com sucesso.');
+        const notesBox = document.getElementById('layout-notes-box');
+        if (rep.validation_notes && rep.validation_notes.length > 0) {
+          notesBox.classList.remove('hidden');
+          notesBox.innerHTML = `<div class="font-bold text-emerald-950 mb-1">✨ Validações & Recálculo em Cascata Aplicados nos Slides:</div>` +
+            rep.validation_notes.map(n => `<div>• ${escapeHtml(n)}</div>`).join('');
+        } else {
+          notesBox.classList.add('hidden');
+        }
 
         const dlBtn = document.getElementById('btn-download-result');
         dlBtn.onclick = () => {
           const byteCharacters = atob(json.pptx_base64);
           const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) { byteNumbers[i] = byteCharacters.charCodeAt(i); }
-          const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const blob = new Blob([new Uint8Array(byteNumbers)], {
+            type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+          });
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a'); a.href = url;
+          const a = document.createElement('a');
+          a.href = url;
           a.download = json.download_filename;
           a.click();
           URL.revokeObjectURL(url);
@@ -1962,11 +2417,13 @@
         renderSlidePreviewCanvas(currentPreviewSlideNumber);
         renderAuditTable();
       } catch (err) {
+        clearTimeout(stageTimeout);
         progressWrapper.classList.add('hidden');
-        showToast('Erro', err.message);
+        progress_bar(0, 0, '#progressbar21', false);
+        alert(err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Processar & Gerar PPTX';
+        btn.textContent = 'Processar e Gerar .PPTX Atualizado';
       }
     }
 
@@ -1977,40 +2434,142 @@
       const container = document.getElementById('audit-cards-container');
       container.innerHTML = '';
 
+      const badgeStyles = {
+        'NOVA_CAIXA_CRIADA_PADRAO_PPT': { label: '🟢 Nova Caixa Criada', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+        'CAIXA_REMOVIDA_PELO_UTILIZADOR': { label: '🔴 Caixa Removida', cls: 'bg-rose-100 text-rose-800 border-rose-300' },
+        'NOME_E_NUMERO_ATUALIZADOS': { label: '🟣 Área / Gestor / Manual', cls: 'bg-purple-100 text-purple-800 border-purple-300' },
+        'NUMERO_ATUALIZADO': { label: '🔵 Headcount Atualizado', cls: 'bg-cni-lightest text-cni-pure border-cni-lighter' },
+        'UNIDADE_SEM_CONTRATOS_NO_BANCO': { label: '🟠 Sem Contratos (0)', cls: 'bg-amber-100 text-amber-900 border-amber-300' },
+        'INALTERADO': { label: '⚪ Mantido Igual', cls: 'bg-slate-100 text-slate-500 border-slate-200' }
+      };
+
+      const targetTypeBadges = {
+        'HEADCOUNT_UNIDADE': { label: '🏢 Unidade / Gerência', cls: 'bg-slate-100 text-slate-700 border-slate-200' },
+        'SUBTOTAL_AREA': { label: '📊 Subtotal Superintendência', cls: 'bg-teal-50 text-teal-800 border-teal-200' },
+        'TOTAL_DIRETORIA': { label: '🏛️ Total Diretoria', cls: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
+        'TOTAL_GERAL_CNI': { label: '🌐 Total Geral CNI', cls: 'bg-amber-50 text-amber-900 border-amber-300' },
+        'DATA_BASE_REFERENCIA': { label: '📅 Data Base', cls: 'bg-slate-100 text-slate-500 border-slate-200' }
+      };
+
       let visibleCount = 0;
+
       currentAuditChanges.forEach((c, idx) => {
         const msg = c.message || '';
+        const isCascadeOrManual = msg.includes('🔄') || msg.includes('✏️') || msg.includes('➕') || msg.includes('🗑️');
+        const isSubtotalOrTotal = (
+          c.target_type === 'SUBTOTAL_AREA' ||
+          c.target_type === 'TOTAL_DIRETORIA' ||
+          c.target_type === 'TOTAL_GERAL_CNI'
+        );
+
         if (statusFilter === 'APENAS_ALTERADOS' && c.status === 'INALTERADO') return;
+        if (statusFilter === 'CASCATA_E_MANUAIS' && !isCascadeOrManual) return;
+        if (statusFilter === 'APENAS_SUBTOTAIS' && !isSubtotalOrTotal) return;
+        if (
+          !['TODOS', 'APENAS_ALTERADOS', 'CASCATA_E_MANUAIS', 'APENAS_SUBTOTAIS'].includes(statusFilter) &&
+          c.status !== statusFilter
+        ) {
+          return;
+        }
         if (slideFilter !== 'TODOS' && String(c.slide_index) !== slideFilter) return;
-        if (searchTerm && !`${c.old_value || ''} ${c.new_value || ''} ${c.shape_id || ''}`.toLowerCase().includes(searchTerm)) return;
+
+        if (searchTerm) {
+          const hay = `${c.old_value} ${c.new_value} ${c.shape_id} ${c.shape_name} ${msg}`.toLowerCase();
+          if (!hay.includes(searchTerm)) return;
+        }
 
         visibleCount++;
         const oldP = parseBoxString(c.old_value);
         const newP = parseBoxString(c.new_value);
+        const stInfo = isCascadeOrManual && msg.includes('🔄')
+          ? { label: '🔄 Recalculado em Cascata', cls: 'bg-emerald-100 text-emerald-900 border-emerald-400' }
+          : (badgeStyles[c.status] || { label: c.status, cls: 'bg-slate-100 text-slate-700' });
+
+        const targetInfo = targetTypeBadges[c.target_type] || { label: 'Elemento', cls: 'bg-slate-100 text-slate-600' };
+
+        let deltaBadge = '';
+        if (oldP.hc !== null && newP.hc !== null) {
+          const diff = newP.hc - oldP.hc;
+          const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
+          const diffColor = diff > 0 ? 'bg-emerald-600 text-white' : (diff < 0 ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-700');
+          deltaBadge = `
+            <div class="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+              <span class="text-xs text-slate-500 line-through">${oldP.hc}</span>
+              <span class="text-slate-400">➔</span>
+              <span class="text-sm font-extrabold text-cni-pure">${newP.hc}</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${diffColor}">${diffStr}</span>
+            </div>
+          `;
+        } else if (newP.hc !== null) {
+          deltaBadge = `<span class="text-sm font-extrabold bg-emerald-600 text-white px-2.5 py-1 rounded-lg">Novo HC: ${newP.hc}</span>`;
+        }
+
+        const highlightBorder = isCascadeOrManual
+          ? 'border-l-4 border-l-emerald-500 border-slate-200 bg-emerald-50/20'
+          : 'border-slate-200 bg-white';
 
         const card = document.createElement('div');
-        card.className = 'p-2.5 rounded border border-slate-200 bg-white flex justify-between items-center gap-2';
+        card.className = `p-3.5 rounded-xl border ${highlightBorder} hover:border-cni-pure/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition`;
         card.innerHTML = `
-          <div>
-            <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
-              <span class="bg-slate-900 text-white px-1.5 py-0.5 rounded">Slide ${c.slide_index}</span>
-              <span>Shape: ${c.shape_id}</span>
+          <div class="space-y-1 flex-1">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="bg-cni-dark text-white text-[11px] font-extrabold px-2.5 py-0.5 rounded">Slide ${c.slide_index}</span>
+              <code class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Shape: ${c.shape_id}</code>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${targetInfo.cls}">${targetInfo.label}</span>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${stInfo.cls}">${stInfo.label}</span>
             </div>
-            <div class="font-semibold text-slate-900 mt-0.5">${escapeHtml(newP.areaName)} <span class="text-cni-pure">${escapeHtml(newP.mgrName)}</span></div>
+
+            ${msg ? `<div class="text-[11px] font-semibold ${isCascadeOrManual ? 'text-emerald-800' : 'text-slate-500'} pt-0.5">${escapeHtml(msg)}</div>` : ''}
+
+            <div class="pt-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+              <div class="text-xs text-slate-400 line-through">${escapeHtml(oldP.areaName)} ${escapeHtml(oldP.mgrName)}</div>
+              <span class="hidden sm:inline text-slate-300">➔</span>
+              <div class="text-sm font-bold text-slate-900">
+                ${escapeHtml(newP.areaName)}
+                ${newP.mgrName ? `<span class="inline-block bg-cni-lightest text-cni-pure border border-cni-lighter text-xs font-semibold px-2 py-0.5 rounded-full ml-1">${escapeHtml(newP.mgrName)}</span>` : ''}
+              </div>
+            </div>
           </div>
-          <div class="flex items-center gap-1.5">
-            <span class="font-bold bg-cni-lightest text-cni-pure px-2 py-0.5 rounded">${newP.hc !== null ? newP.hc : '--'}</span>
-            <button type="button" onclick="loadRowIntoEditor(${idx}, 'UPDATE')" class="btn secondary btn-small py-0.5 px-2">Editar</button>
+
+          <div class="flex flex-wrap items-center gap-1.5 self-end sm:self-center">
+            ${deltaBadge}
+            <button type="button" onclick="loadRowIntoEditor(${idx}, 'UPDATE')" class="btn secondary btn-small" title="Editar esta caixa">
+              ✏️ Editar
+            </button>
+            ${c.target_type === 'HEADCOUNT_UNIDADE' ? `
+              <button type="button" onclick="loadRowIntoEditor(${idx}, 'ADD')" class="btn secondary btn-small" title="Adicionar nova caixa nesta coluna">
+                ➕ Clonar
+              </button>
+              <button type="button" onclick="quickQueueRemoveFromAudit(${idx})" class="btn secondary btn-small text-rose-700" title="Remover esta caixa do slide">
+                🗑️
+              </button>
+            ` : ''}
           </div>
         `;
         container.appendChild(card);
       });
-      document.getElementById('audit-visible-count').textContent = `${visibleCount} itens`;
+
+      const countBadge = document.getElementById('audit-visible-count');
+      if (countBadge) {
+        countBadge.textContent = `${visibleCount} ${visibleCount === 1 ? 'item' : 'itens'}`;
+      }
+    }
+
+    function applyUserRoleUI(user, role) {
+      currentUserRole = role || 'ADMIN';
+      const box = document.getElementById('user-badge-box');
+      const label = document.getElementById('logged-user-label');
+      if (box && label && user) {
+        box.classList.remove('hidden');
+        label.textContent = `👤 ${user} (${currentUserRole})`;
+      }
+      const isViewer = currentUserRole === 'VIEWER';
+      document.getElementById('tab-btn-updater')?.classList.toggle('hidden', isViewer);
+      document.getElementById('btn-open-data-modal')?.classList.toggle('hidden', isViewer);
     }
 
     async function checkAuthAndInit() {
       renderBreadcrumb();
-      renderSessionLog();
       try {
         const res = await fetch('/api/session');
         const data = await safeParseJson(res);
@@ -2018,9 +2577,7 @@
           document.getElementById('login-overlay').classList.remove('hidden');
         } else {
           document.getElementById('login-overlay').classList.add('hidden');
-          currentUserRole = data.role || 'ADMIN';
-          document.getElementById('user-badge-box').classList.remove('hidden');
-          document.getElementById('logged-user-label').textContent = `${data.user} (${data.role})`;
+          applyUserRoleUI(data.user, data.role);
           loadHeadcount(false);
         }
       } catch (err) {
@@ -2031,24 +2588,40 @@
     async function handleLogin(e) {
       e.preventDefault();
       const errBox = document.getElementById('login-error');
+      const submitBtn = document.getElementById('btn-login-submit');
       errBox.classList.add('hidden');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Verificando credenciais...';
+
       const formData = new FormData();
       formData.append('username', document.getElementById('login-user').value);
       formData.append('password', document.getElementById('login-pass').value);
+
       try {
         const res = await fetch('/api/login', { method: 'POST', body: formData });
         if (res.ok) {
+          const data = await safeParseJson(res);
           document.getElementById('login-overlay').classList.add('hidden');
-          checkAuthAndInit();
+          document.getElementById('login-pass').value = '';
+          applyUserRoleUI(data.user, data.role);
+          loadHeadcount(false);
         } else {
-          errBox.textContent = 'Credenciais inválidas.';
+          errBox.textContent = 'Utilizador ou palavra-passe inválidos.';
           errBox.classList.remove('hidden');
         }
-      } catch (err) { showToast('Erro', 'Falha ao autenticar.'); }
+      } catch (err) {
+        errBox.textContent = 'Erro de comunicação com o servidor.';
+        errBox.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Autenticar e Entrar no Portal';
+      }
     }
 
     async function handleLogout() {
       await fetch('/api/logout', { method: 'POST' });
+      switchTab('explorer');
+      document.getElementById('user-badge-box').classList.add('hidden');
       document.getElementById('login-overlay').classList.remove('hidden');
     }
 
