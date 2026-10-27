@@ -1,10 +1,57 @@
 import copy
-from typing import Optional, Dict, Any, List
+import unicodedata
+from typing import Optional, Dict, Any, List, Tuple
 from pptx.presentation import Presentation
 from pptx.slide import Slide
 from pptx.shapes.group import GroupShape
 from pptx.shapes.base import BaseShape
 from pptx.oxml.ns import qn
+from lxml import etree
+
+A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+P_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
+
+
+def normalize_text_key(text: str) -> str:
+    """Remove acentos, espaços extras e padroniza caixa baixa para comparação resiliente."""
+    if not text:
+        return ""
+    clean = " ".join(str(text).strip().split()).lower()
+    nfkd = unicodedata.normalize("NFKD", clean)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def classify_organizational_node(segmento: str, area: str, unidade: str) -> Tuple[str, int]:
+    """
+    Gramática Hierárquica Universal de 5 Níveis do Sistema Indústria (CNI, SESI, SENAI, IEL):
+      - Rank 0 ('CONSELHO_SUPERIOR'): Conselho Nacional SENAI, Presidência
+      - Rank 1 ('DIRETORIA_CABECA'): Diretoria Geral SENAI, Superintendência Geral SESI ou Gabinete Titular
+      - Rank 2 ('DIRETORIA_VINCULADA'): Diretoria criada dentro de uma Entidade/Diretoria Geral (ex: Instituto Integrador)
+      - Rank 3 ('SUPERINTENDENCIA_TITULAR'): Qualquer Superintendência Titular
+      - Rank 4 ('GERENCIA_UNIDADE'): Gerências operacionais, Ouvidoria, Logística, etc.
+    """
+    s_norm = normalize_text_key(segmento)
+    a_norm = normalize_text_key(area)
+    u_norm = normalize_text_key(unidade)
+
+    if u_norm.startswith("conselho") or u_norm.startswith("presidencia"):
+        return ("CONSELHO_SUPERIOR", 0)
+
+    if (
+        "diretoria geral" in u_norm
+        or "superintendencia geral" in u_norm
+        or u_norm == s_norm
+        or (u_norm.startswith("diretoria") and a_norm == s_norm)
+    ):
+        return ("DIRETORIA_CABECA", 1)
+
+    if u_norm.startswith("diretoria") or a_norm.startswith("diretoria"):
+        return ("DIRETORIA_VINCULADA", 2)
+
+    if u_norm.startswith("superintend"):
+        return ("SUPERINTENDENCIA_TITULAR", 3)
+
+    return ("GERENCIA_UNIDADE", 4)
 
 
 class PptxSurgicalEngine:
@@ -153,6 +200,59 @@ class PptxSurgicalEngine:
         full_new = shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
         return full_old, full_new
 
+    @staticmethod
+    def apply_dashed_border_xml(
+        shape_or_group: Optional[BaseShape],
+        hex_color: str = "164194",
+        width_emu: int = 19050,
+    ) -> None:
+        """
+        Aplica borda pontilhada/tracejada (<a:prstDash val="dash"/>) no shape principal da caixa.
+        """
+        if shape_or_group is None:
+            return
+
+        el = shape_or_group._element
+        target_sp = el
+
+        if el.tag.endswith("grpSp"):
+            child_shapes = el.findall(f".//{{{P_NS}}}sp")
+            if child_shapes:
+                def _shape_width(sp_node) -> int:
+                    ext = sp_node.find(f".//{{{A_NS}}}xfrm/{{{A_NS}}}ext")
+                    return int(ext.get("cx", "0")) if ext is not None else 0
+                target_sp = max(child_shapes, key=_shape_width)
+
+        spPr = target_sp.find(f"{{{P_NS}}}spPr")
+        if spPr is None:
+            spPr = target_sp.find(f"{{{A_NS}}}spPr")
+        if spPr is None:
+            return
+
+        ln = spPr.find(f"{{{A_NS}}}ln")
+        if ln is None:
+            ln = etree.SubElement(spPr, f"{{{A_NS}}}ln")
+
+        ln.set("w", str(width_emu))
+
+        no_fill = ln.find(f"{{{A_NS}}}noFill")
+        if no_fill is not None:
+            ln.remove(no_fill)
+
+        solid_fill = ln.find(f"{{{A_NS}}}solidFill")
+        if solid_fill is None:
+            solid_fill = etree.SubElement(ln, f"{{{A_NS}}}solidFill")
+        else:
+            solid_fill.clear()
+
+        srgb = etree.SubElement(solid_fill, f"{{{A_NS}}}srgbClr")
+        srgb.set("val", hex_color.replace("#", "").upper())
+
+        prst_dash = ln.find(f"{{{A_NS}}}prstDash")
+        if prst_dash is None:
+            prst_dash = etree.SubElement(ln, f"{{{A_NS}}}prstDash")
+        prst_dash.set("val", "dash")
+
     @classmethod
     def _find_any_unit_group_on_slide(cls, slide: Slide, preferred_id_str: str) -> Optional[GroupShape]:
         sh = cls.find_shape_by_path(slide, preferred_id_str)
@@ -234,6 +334,8 @@ class PptxSurgicalEngine:
             )
             cls.update_numeric_badge(badge_shape, new_headcount)
 
+        cls.apply_dashed_border_xml(cloned_group, hex_color="164194")
+
         return {
             "new_group_id": new_group_id,
             "name_path": f"{new_group_id}.{text_shapes[0].shape_id}" if len(text_shapes) >= 2 else str(new_group_id),
@@ -242,6 +344,7 @@ class PptxSurgicalEngine:
             "top": cloned_group.top,
             "area_name": new_area_name,
             "headcount": new_headcount,
+            "container_shape": cloned_group,
         }
 
     @classmethod
@@ -556,7 +659,7 @@ class PptxSurgicalEngine:
                     }
                 )
 
-            # 5. Títulos e Caixas Institucionais Reais (Filtra linhas e retângulos vazios cinzas)
+            # 5. Títulos e Caixas Institucionais Reais
             for path, g in geom_map.items():
                 if path in consumed_paths or g["is_group"]:
                     continue
@@ -567,13 +670,11 @@ class PptxSurgicalEngine:
                 if not txt:
                     continue
 
-                # Ignora textos corrompidos ou traços isolados
                 if len(txt) <= 1 and not txt.isdigit():
                     continue
 
                 pct = _to_pct(g["left"], g["top"], g["width"], g["height"])
 
-                # Ignora elementos excessivamente estreitos (que eram as linhas cinzas de fundo)
                 if pct["width_pct"] < 2.5 or pct["height_pct"] < 2.0:
                     continue
 
@@ -617,3 +718,7 @@ class PptxSurgicalEngine:
             )
 
         return slides_data
+
+
+# Alias de compatibilidade
+PowerPointEngine = PptxSurgicalEngine
