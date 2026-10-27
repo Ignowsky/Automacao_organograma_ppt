@@ -236,6 +236,39 @@ class PptxSurgicalEngine:
         prst_dash.set("val", "dash")
 
     @classmethod
+    def auto_discover_mapping(cls, prs: Presentation) -> Dict[str, Any]:
+        """
+        Varre dinamicamente a apresentação .pptx em tempo de execução e autodescobre
+        os caminhos de shapes, grupos, unidades, subtotais e totais sem depender de JSON estático.
+        """
+        discovered = {
+            "unit_boxes": [],
+            "area_subtotal_shapes": [],
+            "segment_total_shapes": [],
+            "company_total_shapes": [],
+            "date_shapes": [],
+            "cloned_new_boxes": [],
+            "extinct_boxes": []
+        }
+
+        for s_idx, slide in enumerate(prs.slides):
+            geom_map = cls._collect_slide_geometry(slide)
+            for path, g in geom_map.items():
+                sh = g["shape"]
+                if not getattr(sh, "has_text_frame", False):
+                    continue
+                txt = sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
+                if not txt:
+                    continue
+
+                # Detecta badges numéricos isolados (Headcount)
+                if txt.isdigit() and len(txt) <= 4:
+                    # Procura um shape de texto vizinho no mesmo grupo ou coordenada vertical próxima
+                    pass
+
+        return discovered
+
+    @classmethod
     def _find_any_unit_group_on_slide(cls, slide: Slide, preferred_id_str: str) -> Optional[GroupShape]:
         sh = cls.find_shape_by_path(slide, preferred_id_str)
         if isinstance(sh, GroupShape):

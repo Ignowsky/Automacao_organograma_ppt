@@ -145,7 +145,7 @@ class PresentationUpdaterService:
             total_company = max(0, total_company + delta_val)
             cascaded_company_delta += delta_val
 
-        # REGRA DE OURO DEFINITIVA: Qualquer unidade do template mapeada que NÃO esteja ativa na base de outubro (ou HC = 0) é marcada para REMOÇÃO REAL DO SLIDE!
+        # REGRA DE OURO RIGOROSA: Puga automática de qualquer caixa mapeada ausente em outubro ou com HC = 0
         for u in self.config.get("unit_boxes", []):
             s_i = int(u["slide_index"])
             full_k = f"{u['name_path']} | {u['badge_path']}"
@@ -153,6 +153,11 @@ class PresentationUpdaterService:
             hc_val = unit_totals.get(u_tuple, 0)
             if hc_val == 0 or (s_i, full_k) not in active_databricks_keys:
                 removed_unit_keys[(s_i, full_k)] = {"auto_purge": True, "unidade": u["unidade"]}
+
+        for ex in self.config.get("extinct_boxes", []):
+            s_i = int(ex["slide_index"])
+            ex_key = f"{ex['name_path']} | {ex['badge_path']}"
+            removed_unit_keys[(s_i, ex_key)] = {"extinct_rule": True, "reason": ex.get("reason", "")}
 
         if custom_overrides:
             for ov in custom_overrides:
@@ -314,7 +319,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 5. Unidades Existentes (Removendo fisicamente do slide e registrando no Inventário Auditável)
+        # 5. Purga Real de Unidades Extintas / Ausentes no Slide
         for u in self.config.get("unit_boxes", []):
             s_idx = int(u["slide_index"])
             sl = prs.slides[s_idx]
@@ -384,7 +389,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 6. Novas Caixas Clonadas (Garantindo criação de Negócios Institucionais no Slide 9 do SENAI)
+        # 6. Novas Caixas Clonadas (Garantindo criação correta de Negócios Institucionais)
         for cl in self.config.get("cloned_new_boxes", []):
             s_idx = int(cl["slide_index"])
             sl = prs.slides[s_idx]
