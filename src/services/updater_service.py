@@ -145,7 +145,7 @@ class PresentationUpdaterService:
             total_company = max(0, total_company + delta_val)
             cascaded_company_delta += delta_val
 
-        # REGRA DE OURO RIGOROSA: Qualquer unidade mapeada que NÃO esteja presente na base ativa (ou tenha HC=0) é marcada para REMOÇÃO imediata!
+        # REGRA DE OURO DEFINITIVA: Qualquer unidade do template mapeada que NÃO esteja ativa na base de outubro (ou HC = 0) é marcada para REMOÇÃO REAL DO SLIDE!
         for u in self.config.get("unit_boxes", []):
             s_i = int(u["slide_index"])
             full_k = f"{u['name_path']} | {u['badge_path']}"
@@ -314,7 +314,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 5. Unidades Existentes (Excluindo automaticamente se ausentes ou HC = 0)
+        # 5. Unidades Existentes (Removendo fisicamente do slide e registrando no Inventário Auditável)
         for u in self.config.get("unit_boxes", []):
             s_idx = int(u["slide_index"])
             sl = prs.slides[s_idx]
@@ -331,10 +331,10 @@ class PresentationUpdaterService:
                         canonical_key,
                         u["unidade"],
                         TargetType.HEADCOUNT_UNIT,
-                        f"{old_txt} [Presente Antigo]",
-                        "(Área Removida por Ausência na Base Atual) [0]",
+                        f"{old_txt} [Presente na Base Anterior]",
+                        "(Removido do Slide por Ausência em Outubro) [0]",
                         UpdateStatus.REMOVED_BOX,
-                        f"🗑️ Área ausente na competência atual removida automaticamente do slide · {u['segmento']} › {u['area']}",
+                        f"🗑️ Caixa ausente na base de outubro removida do slide e coluna compactada · {u['segmento']} › {u['area']}",
                     )
                 )
                 continue
@@ -384,7 +384,7 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 6. Novas Caixas Clonadas
+        # 6. Novas Caixas Clonadas (Garantindo criação de Negócios Institucionais no Slide 9 do SENAI)
         for cl in self.config.get("cloned_new_boxes", []):
             s_idx = int(cl["slide_index"])
             sl = prs.slides[s_idx]

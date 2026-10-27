@@ -67,7 +67,7 @@ class HeadcountRecord:
         if u_norm.startswith("diretoria") or a_norm.startswith("diretoria"):
             return OrganizationalRole.DIRETORIA_VINCULADA
 
-        if u_norm.startswith("superintend"):
+        if u_norm.startswith("superintend") or "negocios institucionais" in a_norm:
             return OrganizationalRole.SUPERINTENDENCIA_TITULAR
 
         return OrganizationalRole.GERENCIA_UNIDADE
@@ -92,7 +92,7 @@ class HeadcountRecord:
                 OrganizationalRole.DIRETORIA_CABECA,
                 OrganizationalRole.DIRETORIA_VINCULADA,
             )
-            or _normalize_str(self.area_des) in ("cni/sp", "diretoria geral", "conselho nacional senai")
+            or _normalize_str(self.area_des) in ("cni/sp", "diretoria geral", "conselho nacional senai", "negocios institucionais")
         )
 
 

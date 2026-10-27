@@ -39,7 +39,7 @@ def classify_organizational_node(segmento: str, area: str, unidade: str) -> Tupl
     if u_norm.startswith("diretoria") or a_norm.startswith("diretoria"):
         return ("DIRETORIA_VINCULADA", 2)
 
-    if u_norm.startswith("superintend"):
+    if u_norm.startswith("superintend") or "negocios institucionais" in a_norm:
         return ("SUPERINTENDENCIA_TITULAR", 3)
 
     return ("GERENCIA_UNIDADE", 4)
