@@ -106,11 +106,7 @@ class PresentationUpdaterService:
             )
             unit_totals[(r.segmento_des, r.area_des, r.unidade_des)] = r.headcount
 
-        base_total_company = total_company
-        base_seg_totals = dict(seg_totals)
-        base_area_totals = dict(area_totals)
-
-        # Sincronização dinâmica: compara o PPT anexado com a base e recalcula o que fica, o que sai e o que entra
+        # Sincronização dinâmica em memória (100% independente de slide_mapping.json)
         self.config = StructureSyncService.reconcile(prs, records, self.base_config)
         sync_notes: List[str] = list(self.config.pop("_sync_notes", []))
 
@@ -149,8 +145,6 @@ class PresentationUpdaterService:
 
         unit_overrides_by_key: Dict[tuple[int, str], Dict[str, Any]] = {}
         removed_unit_keys: Dict[tuple[int, str], Dict[str, Any]] = {}
-        direct_shape_overrides: Dict[tuple[int, str], Dict[str, Any]] = {}
-        unmapped_overrides: List[Dict[str, Any]] = []
         custom_added_boxes: List[Dict[str, Any]] = []
 
         cascaded_area_deltas: Dict[tuple[str, str], int] = {}
@@ -343,7 +337,7 @@ class PresentationUpdaterService:
                         f"Subtotal [{old_sub}]",
                         f"(Removido: área sem registros em {reference_label}) [0]",
                         UpdateStatus.REMOVED_BOX,
-                        f"🗑️ Área extinta: selo de subtotal removido · {seg_name} › {area_name}",
+                        f"Área extinta: selo de subtotal removido · {seg_name} › {area_name}",
                     )
                 )
                 continue
@@ -387,7 +381,7 @@ class PresentationUpdaterService:
                         f"{old_txt} [Presente na Base Anterior]",
                         f"(Removido do Slide: sem registro em {reference_label}) [0]",
                         UpdateStatus.REMOVED_BOX,
-                        f"🗑️ Caixa sem registro na base ({reference_label}) removida do slide e coluna compactada · {u['segmento']} › {u['area']}",
+                        f"Caixa sem registro na base ({reference_label}) removida do slide e coluna compactada · {u['segmento']} › {u['area']}",
                     )
                 )
                 continue
@@ -401,7 +395,7 @@ class PresentationUpdaterService:
             val = unit_totals.get((u["segmento"], u["area"], u["unidade"]), 0)
             old_num, new_num = PptxSurgicalEngine.update_numeric_badge(badge_sh, val)
             old_area_only, _ = PptxSurgicalEngine.split_area_and_manager(name_sh)
-            old_name = name_sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
+            old_name = " ".join(name_sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
             new_name = old_name
 
             top_grp_id = str(u["name_path"]).split(".")[0].strip()
@@ -413,7 +407,6 @@ class PresentationUpdaterService:
                     _, new_name = PptxSurgicalEngine.update_area_name_preserving_manager(
                         name_sh, target_area, new_manager_override=ov.get("new_manager")
                     )
-                # Marca como alterada (borda tracejada no PPTX e no Canvas)
                 u["is_modified"] = True
                 PptxSurgicalEngine.apply_dashed_border_xml(top_grp_sh or name_sh, hex_color="164194")
                 manual_entries.append(
@@ -425,7 +418,7 @@ class PresentationUpdaterService:
                         f"{old_name} [{old_num}]",
                         f"{new_name} [{new_num}]",
                         UpdateStatus.UPDATED_NAME_AND_NUMBER,
-                        f"✏️ Editado manualmente · {u['segmento']} › {u['area']}",
+                        f"Editado manualmente · {u['segmento']} › {u['area']}",
                     )
                 )
             else:
@@ -476,7 +469,6 @@ class PresentationUpdaterService:
                 role_code=role_code,
             )
 
-            # Registra a caixa clonada em unit_boxes com is_cloned=True para aparecer pontilhada no Preview 16:9
             self.config.setdefault("unit_boxes", []).append(
                 {
                     "slide_index": s_idx,
@@ -494,7 +486,7 @@ class PresentationUpdaterService:
             _grp = cloned_info.get("container_shape")
             if _grp is not None and int(_grp.top) + int(_grp.height) > _slide_h:
                 sync_notes.append(
-                    f"⚠ Slide {s_idx + 1}: a nova caixa \"{cl['display_name']}\" ultrapassa a borda inferior do slide; reorganize a coluna."
+                    f"Slide {s_idx + 1}: a nova caixa \"{cl['display_name']}\" ultrapassa a borda inferior do slide; reorganize a coluna."
                 )
 
             regular_entries.append(
@@ -547,7 +539,7 @@ class PresentationUpdaterService:
                         "(Nova Caixa Adicionada na Web)",
                         f"{add_req['new_area_name']} {add_req['new_manager']} [{add_req['new_headcount']}]",
                         UpdateStatus.CLONED_NEW_BOX,
-                        f"➕ Nova caixa tracejada criada pelo utilizador · {add_req['segmento']} › {add_req['area']}",
+                        f"Nova caixa tracejada criada pelo utilizador · {add_req['segmento']} › {add_req['area']}",
                     )
                 )
             except Exception:

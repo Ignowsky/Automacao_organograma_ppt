@@ -2,9 +2,10 @@
 Motor 100% Automático de Descoberta Geométrica e Reconciliação Estrutural (PPTX <-> Excel/Databricks).
 
 Livre de qualquer nome de área, diretoria ou superintendência hardcoded:
-1. Utiliza radicalização morfológica genérica da língua portuguesa (stemming) e afinidade posicional de colunas;
-2. Pareia caixas e colunas ordenando globalmente pelos pares de maior similaridade decrescente;
-3. Classifica níveis hierárquicos exclusivamente pela gramática do prefixo da unidade e pela geometria do slide.
+1. Isola o Slide 1 (Macroestrutura) para que jamais receba clonagem de unidades de slides de detalhe;
+2. Utiliza radicalização morfológica genérica da língua portuguesa (stemming) e afinidade posicional de colunas;
+3. Pareia caixas e colunas ordenando globalmente pelos pares de maior similaridade decrescente;
+4. Classifica níveis hierárquicos exclusivamente pela gramática do prefixo da unidade e pela geometria do slide.
 """
 from __future__ import annotations
 
@@ -31,8 +32,8 @@ def _clean_text(sh: Any) -> str:
 
 
 def _stem_word(word: str) -> str:
-    """Radicalizador morfológico genérico (mantém a raiz de 6 caracteres para palavras longas)."""
-    return word[:6] if len(word) >= 7 else word
+    """Radicalizador morfológico genérico (mantém a raiz de 5 caracteres para palavras >= 5 letras)."""
+    return word[:5] if len(word) >= 5 else word
 
 
 def _core_tokens(text: str) -> Set[str]:
@@ -109,7 +110,8 @@ class StructureSyncService:
             discovered_dates.extend(slide_info["date_shapes"])
             discovered_company_totals.extend(slide_info["company_total_shapes"])
             discovered_segment_totals.extend(slide_info["segment_total_shapes"])
-            if slide_info["segmento"]:
+            # Apenas slides de detalhe (s_idx > 0) entram no pipeline de reconciliação/clonagem de unidades
+            if s_idx > 0 and slide_info["segmento"]:
                 slide_segments[s_idx] = slide_info["segmento"]
                 raw_boxes_by_slide[s_idx] = slide_info["unit_boxes"]
                 discovered_area_subtotals.extend(slide_info["area_subtotal_shapes"])
@@ -167,18 +169,24 @@ class StructureSyncService:
 
     @classmethod
     def _match_segment_name(cls, text: str, seg_names: List[str]) -> Optional[str]:
+        t_norm = normalize_text_key(text)
+        if not t_norm or "macroestrutura" in t_norm:
+            return None
         t_tokens = _core_tokens(text)
         if not t_tokens:
             return None
         best_s, best_score = None, 0.0
         for s in seg_names:
             s_tokens = _core_tokens(s)
-            if s_tokens and s_tokens.issubset(t_tokens):
-                return s
+            # Se o segmento tem apenas 1 token curto (ex: 'sesi', 'senai', 'iel'), verifica presença direta do token
+            if len(s_tokens) == 1:
+                only_tok = next(iter(s_tokens))
+                if len(only_tok) <= 5 and only_tok in t_tokens:
+                    return s
             sc = _similarity(text, s)
             if sc > best_score:
                 best_s, best_score = s, sc
-        return best_s if best_score >= 0.65 else None
+        return best_s if best_score >= 0.68 else None
 
     @classmethod
     def _scan_slide_elements(
@@ -195,14 +203,15 @@ class StructureSyncService:
         ungrouped_text_boxes: List[Tuple[str, int, int, int, int, str]] = []
         unmatched_macro_badges: List[str] = []
 
-        # 1. Pré-identifica o título do slide para contextualizar o Segmento
-        for sh in slide.shapes:
-            if not isinstance(sh, GroupShape) and getattr(sh, "has_text_frame", False):
-                txt = _clean_text(sh)
-                if txt and int(getattr(sh, "top", 0)) < 700000 and int(getattr(sh, "left", 0)) < 2000000:
-                    if not txt.replace(".", "").isdigit():
-                        slide_title_seg = cls._match_segment_name(txt, seg_names)
-                        break
+        # 1. Identifica o segmento do slide pelo título superior APENAS nos slides de detalhe (slide_index > 0)
+        if slide_index > 0:
+            for sh in slide.shapes:
+                if not isinstance(sh, GroupShape) and getattr(sh, "has_text_frame", False):
+                    txt = _clean_text(sh)
+                    if txt and int(getattr(sh, "top", 0)) < 700000 and int(getattr(sh, "left", 0)) < 2000000:
+                        if not txt.replace(".", "").isdigit():
+                            slide_title_seg = cls._match_segment_name(txt, seg_names)
+                            break
 
         # 2. Varre todos os shapes do slide
         for sh in slide.shapes:
@@ -256,6 +265,11 @@ class StructureSyncService:
                         else:
                             unmatched_macro_badges.append(badge_path)
                     else:
+                        badge_sh = PptxSurgicalEngine.find_shape_by_path(slide, badge_path)
+                        try:
+                            old_hc_val = int(float(_clean_text(badge_sh)))
+                        except ValueError:
+                            old_hc_val = -1
                         role_code = _box_role_from_title_and_geom(area_title, top, width, slide_title_seg or "")
                         unit_boxes.append(
                             {
@@ -270,6 +284,7 @@ class StructureSyncService:
                                 "width": width,
                                 "height": height,
                                 "role_code": role_code,
+                                "old_hc": old_hc_val,
                             }
                         )
                 continue
@@ -300,7 +315,6 @@ class StructureSyncService:
             else:
                 ungrouped_text_boxes.append((sid, left, top, width, height, txt))
 
-        # No Slide 1 (Macroestrutura), se houver um Segmento em caixa desagrupada sem badge próprio e um grupo pai com badge disponível, vincula-os dinamicamente
         if slide_index == 0 and unmatched_macro_badges:
             covered_segs = {s["segmento"] for s in segment_total_shapes}
             for sid, left, top, width, height, txt in ungrouped_text_boxes:
@@ -318,18 +332,22 @@ class StructureSyncService:
                     )
                     covered_segs.add(m_seg)
 
-        # 3. Trata caixas desagrupadas nos slides de detalhe (Slides 2 a 11)
         used_top_badges: Set[str] = set()
         for sid, left, top, width, height, txt in ungrouped_text_boxes:
             if slide_index == 0 or top > 6000000 or top < 600000:
                 continue
 
             paired_badge = None
+            paired_hc = -1
             for b_id, b_left, b_top, b_w, b_h, b_txt in top_number_badges:
                 if b_id in used_top_badges:
                     continue
                 if abs(b_top - top) <= 120000 and (left <= b_left <= left + width + 250000):
                     paired_badge = b_id
+                    try:
+                        paired_hc = int(float(b_txt))
+                    except ValueError:
+                        paired_hc = -1
                     used_top_badges.add(b_id)
                     break
 
@@ -351,6 +369,7 @@ class StructureSyncService:
                         "width": width,
                         "height": height,
                         "role_code": role_code,
+                        "old_hc": paired_hc,
                     }
                 )
             elif "(" in txt and normalize_text_key(area_title).startswith(("superintend", "gerencia", "diretoria")) and top > 1200000:
@@ -371,7 +390,6 @@ class StructureSyncService:
                     }
                 )
 
-        # 4. Os demais badges numéricos isolados no meio do slide são os Subtotais de Superintendência
         for b_id, b_left, b_top, b_w, b_h, _ in top_number_badges:
             if b_id in used_top_badges:
                 continue
@@ -453,9 +471,11 @@ class StructureSyncService:
             b_role = b["role_code"]
             for r in seg_records:
                 r_role, _ = classify_organizational_node(r.segmento_des, r.area_des, r.unidade_des)
-                # Compatibilidade de papel: mesmo nível hierárquico, ou promoção de Gerência a Superintendência quando os tokens nucleares são idênticos
                 if b_role != r_role:
-                    if not ({b_role, r_role} <= {"SUPERINTENDENCIA_TITULAR", "GERENCIA_UNIDADE"} and _core_tokens(b["title"]) == _core_tokens(r.unidade_des)):
+                    if not (
+                        {b_role, r_role} <= {"SUPERINTENDENCIA_TITULAR", "GERENCIA_UNIDADE"}
+                        and _core_tokens(b["title"]) == _core_tokens(r.unidade_des)
+                    ):
                         continue
                 sim = _similarity(b["title"], r.unidade_des)
                 if sim >= 0.58:
@@ -492,7 +512,7 @@ class StructureSyncService:
             )
             kept_count += 1
 
-        # PASSO 2: Afinidade Posicional por Coluna de Superintendência
+        # PASSO 2: Afinidade Posicional e de Contagem por Coluna de Superintendência
         sup_headers = [b for b in valid_slide_boxes if b["role_code"] == "SUPERINTENDENCIA_TITULAR"]
         sup_headers.sort(key=lambda x: x["left"])
 
@@ -528,7 +548,15 @@ class StructureSyncService:
                 and classify_organizational_node(r.segmento_des, r.area_des, r.unidade_des)[0] == "GERENCIA_UNIDADE"
             ]
 
-            for cb, rec in zip(unmatched_col_boxes, unmatched_area_recs):
+            # Pareia priorizando correspondência exata de headcount na coluna ou ordem vertical
+            for cb in list(unmatched_col_boxes):
+                if not unmatched_area_recs:
+                    break
+                cb_hc = cb.get("old_hc", -1)
+                hc_matches = [r for r in unmatched_area_recs if r.headcount == cb_hc]
+                rec = hc_matches[0] if hc_matches else unmatched_area_recs[0]
+                unmatched_area_recs.remove(rec)
+
                 cb_key = f"{cb['name_path']} | {cb['badge_path']}"
                 used_boxes.add(cb_key)
                 used_records.add((rec.segmento_des, rec.area_des, rec.unidade_des))
