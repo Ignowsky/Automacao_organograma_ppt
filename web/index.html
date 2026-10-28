@@ -1552,41 +1552,31 @@
       renderBreadcrumb();
     }
 
-    function isElementNewOrCloned(slideNumber, el) {
-      if (!el) return false;
-      if (el.is_cloned || el.is_new) return true;
+  function isElementNewOrCloned(slideNumber, el) {
+        if (!el) return false;
+        // 1. Sinalizado diretamente pelo motor de reconciliação (nova caixa clonada ou caixa alterada/renomeada)
+        if (el.is_cloned || el.is_new || el.is_modified) return true;
 
-      const sk = String(el.shape_key || '').toLowerCase();
-      const gid = String(el.group_id || '').toLowerCase();
-      const areaLow = String(el.area_name || '').toLowerCase();
-      const mgrLow = String(el.manager || '').toLowerCase();
+        // 2. Verifica no relatório de auditoria se esta caixa específica foi criada ou alterada nesta execução
+        const matchingChange = (currentAuditChanges || []).find(c => {
+          if (Number(c.slide_index) !== Number(slideNumber)) return false;
+          if (c.shape_id && el.shape_key && String(c.shape_id).trim() === String(el.shape_key).trim()) {
+            return true;
+          }
+          return false;
+        });
 
-      if (sk.includes('clonado') || sk.includes('new') || gid.includes('clone')) return true;
-      if (mgrLow.includes('definir gestor')) return true;
-      if (areaLow.includes('instituto integrador')) return true;
-
-      // Verifica no relatório de auditoria se esta caixa foi criada ou renomeada para uma nova estrutura
-      const matchingChange = (currentAuditChanges || []).find(c => {
-        if (Number(c.slide_index) !== Number(slideNumber)) return false;
-        if (c.shape_id && el.shape_key && String(c.shape_id).trim() === String(el.shape_key).trim()) {
-          return true;
-        }
-        return false;
-      });
-
-      if (matchingChange) {
-        if (matchingChange.status === 'NOVA_CAIXA_CRIADA_PADRAO_PPT') return true;
-        if (matchingChange.status === 'NOME_E_NUMERO_ATUALIZADOS') {
-          const oldP = parseBoxString(matchingChange.old_value);
-          const newP = parseBoxString(matchingChange.new_value);
-          if (oldP.areaName.toLowerCase() !== newP.areaName.toLowerCase()) {
+        if (matchingChange) {
+          if (
+            matchingChange.status === 'NOVA_CAIXA_CRIADA_PADRAO_PPT' ||
+            matchingChange.status === 'NOME_E_NUMERO_ATUALIZADOS'
+          ) {
             return true;
           }
         }
-      }
 
-      return false;
-    }
+        return false;
+      }
 
     function renderSlidePreviewCanvas(slideNumber) {
       const stage = document.getElementById('slide-preview-canvas');
