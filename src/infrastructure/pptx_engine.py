@@ -5,6 +5,7 @@ from pptx.presentation import Presentation
 from pptx.slide import Slide
 from pptx.shapes.group import GroupShape
 from pptx.shapes.base import BaseShape
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.oxml.ns import qn
 from lxml import etree
 
@@ -32,11 +33,11 @@ def classify_organizational_node(segmento: str, area: str, unidade: str) -> Tupl
         "diretoria geral" in u_norm
         or "superintendencia geral" in u_norm
         or u_norm == s_norm
-        or (u_norm.startswith("diretoria") and a_norm == s_norm)
+        or (s_norm == "iel" and u_norm.startswith("superintendencia"))
     ):
         return ("DIRETORIA_CABECA", 1)
 
-    if u_norm.startswith("diretoria") or a_norm.startswith("diretoria"):
+    if u_norm.startswith("diretoria"):
         return ("DIRETORIA_VINCULADA", 2)
 
     if u_norm.startswith("superintend") or "negocios institucionais" in a_norm:
@@ -48,6 +49,8 @@ def classify_organizational_node(segmento: str, area: str, unidade: str) -> Tupl
 class PptxSurgicalEngine:
     DEFAULT_VERTICAL_GAP_EMU = 95000
     STANDARD_UNIT_HEIGHT_EMU = 629312
+    STANDARD_SUP_WIDTH_EMU = 2138902
+    STANDARD_SUP_HEIGHT_EMU = 721581
     COLUMN_ALIGNMENT_TOLERANCE_EMU = 180000
 
     @staticmethod
@@ -236,36 +239,6 @@ class PptxSurgicalEngine:
         prst_dash.set("val", "dash")
 
     @classmethod
-    def auto_discover_slide_metadata(cls, prs: Presentation, records: List[Any]) -> Dict[str, Any]:
-        """
-        Analisa a apresentação e a base de headcount em tempo de execução, 
-        mapeando dinamicamente cada unidade ao seu shape correspondente no slide por similaridade textual.
-        """
-        discovered_units = []
-        for s_idx, slide in enumerate(prs.slides):
-            geom_map = cls._collect_slide_geometry(slide)
-            for path, g in geom_map.items():
-                sh = g["shape"]
-                if not getattr(sh, "has_text_frame", False):
-                    continue
-                txt = sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
-                if not txt:
-                    continue
-                # Se o texto corresponder a uma unidade da base, mapeia dinamicamente
-                for r in records:
-                    if normalize_text_key(r.unidade_des) in normalize_text_key(txt):
-                        discovered_units.append({
-                            "slide_index": s_idx,
-                            "segmento": r.segmento_des,
-                            "area": r.area_des,
-                            "unidade": r.unidade_des,
-                            "name_path": path,
-                            "badge_path": path
-                        })
-                        break
-        return {"unit_boxes": discovered_units}
-
-    @classmethod
     def _find_any_unit_group_on_slide(cls, slide: Slide, preferred_id_str: str) -> Optional[GroupShape]:
         sh = cls.find_shape_by_path(slide, preferred_id_str)
         if isinstance(sh, GroupShape):
@@ -316,8 +289,6 @@ class PptxSurgicalEngine:
         cloned_group: GroupShape = slide.shapes[-1]
 
         target_left = left_override if left_override is not None else col_left
-        if left_override is None and role_code in ("SUPERINTENDENCIA_TITULAR", "DIRETORIA_VINCULADA"):
-            target_left = col_left
 
         if top_override is not None:
             target_top = top_override
@@ -330,16 +301,21 @@ class PptxSurgicalEngine:
                     continue
                 if isinstance(sh, GroupShape) and abs(int(sh.left) - target_left) <= cls.COLUMN_ALIGNMENT_TOLERANCE_EMU:
                     sh_bottom = int(sh.top) + int(sh.height)
-                    if sh_bottom > lowest_bottom and int(sh.top) < 5600000:
+                    if sh_bottom > lowest_bottom and int(sh.top) < 5900000:
                         lowest_bottom = sh_bottom
             target_top = lowest_bottom + cls.DEFAULT_VERTICAL_GAP_EMU
 
         cloned_group.left = target_left
         cloned_group.top = target_top
-        cloned_group.width = template_group.width
-        cloned_group.height = (
-            cls.STANDARD_UNIT_HEIGHT_EMU if len(new_area_name) < 35 else template_group.height
-        )
+
+        if role_code in ("SUPERINTENDENCIA_TITULAR", "DIRETORIA_VINCULADA"):
+            cloned_group.width = cls.STANDARD_SUP_WIDTH_EMU
+            cloned_group.height = cls.STANDARD_SUP_HEIGHT_EMU
+        else:
+            cloned_group.width = template_group.width
+            cloned_group.height = (
+                cls.STANDARD_UNIT_HEIGHT_EMU if len(new_area_name) < 35 else template_group.height
+            )
 
         text_shapes = [s for s in cloned_group.shapes if getattr(s, "has_text_frame", False)]
         if len(text_shapes) >= 2:
@@ -364,8 +340,6 @@ class PptxSurgicalEngine:
 
     @classmethod
     def remove_shapes_with_backdrop(cls, slide: Slide, paths: List[str]) -> int:
-        """Remove shapes (por caminho) e os shapes SEM texto que formam o fundo dessa caixa
-        (retângulo/borda cujo centro cai dentro da área ocupada pelos shapes removidos)."""
         shapes = [cls.find_shape_by_path(slide, p) for p in paths]
         shapes = [sh for sh in shapes if sh is not None]
         if not shapes:
@@ -403,8 +377,11 @@ class PptxSurgicalEngine:
                 except Exception:
                     continue
                 area_union = max(1, (right - left) * (bottom - top))
-                if (left - tol <= cx <= right + tol and top - tol <= cy <= bottom + tol
-                        and area_sib <= area_union * 1.6):
+                if (
+                    left - tol <= cx <= right + tol
+                    and top - tol <= cy <= bottom + tol
+                    and area_sib <= area_union * 1.6
+                ):
                     el = sib.element
                     if el.getparent() is not None:
                         el.getparent().remove(el)
@@ -438,8 +415,6 @@ class PptxSurgicalEngine:
                 except ValueError:
                     old_hc = 0
 
-        # Grupo-contêiner: se o grupo de topo guarda OUTROS shapes mapeados (subtotais, outras
-        # caixas...), remover o grupo inteiro apagaria dados alheios. Remove só esta caixa.
         if len(parts) == 2 and protected_paths and "|" in shape_key:
             own = {name_p, badge_p}
             others = {p for p in protected_paths if p.startswith(parts[0] + ".") and p not in own}
@@ -460,8 +435,6 @@ class PptxSurgicalEngine:
         if len(parts) >= 3:
             sub_group_path = ".".join(parts[:-1])
             target_node = cls.find_shape_by_path(slide, sub_group_path)
-        elif len(parts) == 2:
-            target_node = cls.find_shape_by_path(slide, parts[0])
         else:
             target_node = cls.find_shape_by_path(slide, parts[0])
 
@@ -481,6 +454,22 @@ class PptxSurgicalEngine:
             badge_node = cls.find_shape_by_path(slide, badge_part)
             if badge_node is not None and badge_node.element.getparent() is not None:
                 badge_node.element.getparent().remove(badge_node.element)
+
+        # Remove também linhas conectoras órfãs se não restou nenhuma caixa nessa coluna abaixo de removed_top
+        remaining_in_col = [
+            sh for sh in slide.shapes
+            if isinstance(sh, GroupShape)
+            and abs(int(sh.left) - removed_left) <= 350000
+            and int(sh.top) >= removed_top - 200000
+        ]
+        if not remaining_in_col:
+            for sh in list(slide.shapes):
+                if sh.shape_type == MSO_SHAPE_TYPE.LINE:
+                    l_left = int(getattr(sh, "left", 0))
+                    l_top = int(getattr(sh, "top", 0))
+                    if abs(l_left - removed_left) <= 350000 and l_top >= removed_top - 600000:
+                        if sh.element.getparent() is not None:
+                            sh.element.getparent().remove(sh.element)
 
         shifted_count = 0
         if compact_column and removed_height > 0 and parent_xml is not None:
@@ -505,7 +494,7 @@ class PptxSurgicalEngine:
         }
 
     @classmethod
-    def _collect_slide_geometry(cls, slide: Slide) -> tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]]]:
+    def _collect_slide_geometry(cls, slide: Slide) -> Dict[str, Dict[str, Any]]:
         geom_map: Dict[str, Dict[str, Any]] = {}
 
         def _get_group_transform(grp_shape: GroupShape) -> tuple[float, float, float, float, float, float, float, float]:
@@ -618,8 +607,10 @@ class PptxSurgicalEngine:
                 max_b = max(g1["top"] + g1["height"], g2["top"] + g2["height"])
                 return _to_pct(min_l, min_t, max_r - min_l, max_b - min_t)
 
+            # 1. Unidades ativas (incluindo as recém-clonadas registradas no mapping_config)
             all_unit_rules = [
-                {**u, "is_extinct": False} for u in cfg.get("unit_boxes", []) if int(u["slide_index"]) == s_idx
+                u for u in cfg.get("unit_boxes", [])
+                if int(u["slide_index"]) == s_idx and not u.get("force_remove")
             ]
 
             for u in all_unit_rules:
@@ -639,11 +630,11 @@ class PptxSurgicalEngine:
                     if getattr(g_badge["shape"], "has_text_frame", False)
                     else "0"
                 )
-                box_pct = _union_box(np_str, bp_str)
-                if not box_pct:
+                if badge_txt == "0":
                     continue
 
-                if badge_txt == "0":
+                box_pct = _union_box(np_str, bp_str)
+                if not box_pct:
                     continue
 
                 is_head = (
@@ -664,12 +655,15 @@ class PptxSurgicalEngine:
                         "badge": badge_txt,
                         "is_head": is_head,
                         "is_extinct": False,
+                        "is_cloned": bool(u.get("is_cloned", False)),
+                        "is_new": bool(u.get("is_new", False)),
                         **box_pct,
                     }
                 )
 
+            # 2. Subtotais de Superintendência
             for a in cfg.get("area_subtotal_shapes", []):
-                if int(a["slide_index"]) != s_idx:
+                if int(a["slide_index"]) != s_idx or a.get("area") == "__EXTINCT_AREA__":
                     continue
                 sp = str(a["shape_path"]).strip()
                 g = geom_map.get(sp)
@@ -690,6 +684,7 @@ class PptxSurgicalEngine:
                     }
                 )
 
+            # 3. Totais de Diretoria e Total Geral CNI
             tot_rules = [
                 {**s, "label": f"Total {s.get('segmento', '')}", "is_company": False}
                 for s in cfg.get("segment_total_shapes", [])
@@ -718,6 +713,7 @@ class PptxSurgicalEngine:
                     }
                 )
 
+            # 4. Datas Base
             for d in cfg.get("date_shapes", []):
                 if int(d["slide_index"]) != s_idx:
                     continue
@@ -737,6 +733,7 @@ class PptxSurgicalEngine:
                     }
                 )
 
+            # 5. Apenas Títulos de Slide, Rodapés e Caixas Macro do Slide 1 (NUNCA renderiza órfãs como INSTITUTIONAL_BOX nos slides 2 a 11)
             for path, g in geom_map.items():
                 if path in consumed_paths or g["is_group"]:
                     continue
@@ -744,9 +741,7 @@ class PptxSurgicalEngine:
                 if not getattr(sh, "has_text_frame", False):
                     continue
                 txt = sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
-                if not txt:
-                    continue
-                if len(txt) <= 1 and not txt.isdigit():
+                if not txt or (len(txt) <= 1 and not txt.isdigit()):
                     continue
                 pct = _to_pct(g["left"], g["top"], g["width"], g["height"])
                 if pct["width_pct"] < 2.5 or pct["height_pct"] < 2.0:
@@ -770,7 +765,7 @@ class PptxSurgicalEngine:
                             **pct,
                         }
                     )
-                else:
+                elif s_idx == 0 or normalize_text_key(txt).startswith(("diretoria da cni", "conselho de representantes", "presidencia", "iniciativa mei")):
                     area_part, mgr_part = cls.split_area_and_manager(sh)
                     elements.append(
                         {

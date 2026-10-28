@@ -1,18 +1,6 @@
 """
-Sincronização dinâmica da estrutura do PowerPoint com a base (Databricks).
-
-Em vez de depender de um slide_mapping.json "congelado" (com extintas/clonadas escritas
-à mão), este módulo compara, A CADA EXECUÇÃO, o que existe no PPT anexado com o que existe
-na base e devolve uma configuração no MESMO formato do JSON antigo:
-
-  * unit_boxes        -> caixas que continuam existindo (casadas com a base)
-                         + caixas sem correspondência na base marcadas com force_remove
-  * cloned_new_boxes  -> unidades novas na base que ainda não têm caixa no slide
-  * extinct_boxes     -> sempre vazio (a lista manual foi substituída pelo cálculo)
-
-O JSON continua sendo usado apenas como "dica" de layout (caminhos dos selos de total,
-subtotal e data), então o restante do pipeline fica intacto.
-Nada é gravado em disco (Vercel é read-only): tudo acontece em memória.
+Motor 100% Automático de Descoberta Geométrica e Reconciliação Estrutural (PPTX <-> Excel/Databricks).
+Opera inteiramente em memória sem depender de config/slide_mapping.json.
 """
 from __future__ import annotations
 
@@ -29,391 +17,716 @@ from src.infrastructure.pptx_engine import (
     normalize_text_key,
 )
 
-# Só caixas "descobertas" (não presentes no JSON) com estes prefixos são removidas
-# automaticamente quando não existem mais na base; as demais são mantidas e avisadas.
-_UNIT_PREFIXES = ("gerencia", "superintend", "diretoria", "coordenacao", "unidade")
-_ROLE_ORDER = {
-    "CONSELHO_SUPERIOR": 0,
-    "DIRETORIA_CABECA": 1,
-    "DIRETORIA_VINCULADA": 2,
-    "SUPERINTENDENCIA_TITULAR": 3,
-    "GERENCIA_UNIDADE": 4,
+_STOPWORDS = {
+    "de", "da", "do", "das", "dos", "e", "em", "no", "na", "para", "com", "a", "o",
+    "dn", "nc", "cni", "sesi", "senai", "iel",
 }
-_COLUMN_GAP_EMU = 120000
 
 
-def _text(sh: Any) -> str:
+def _clean_text(sh: Any) -> str:
     if sh is None or not getattr(sh, "has_text_frame", False):
         return ""
     return sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
 
 
-def _rec_key(r: HeadcountRecord) -> Tuple[str, str, str]:
-    return (r.segmento_des, r.area_des, r.unidade_des)
+def _strip_role_prefix(text: str) -> str:
+    norm = normalize_text_key(text)
+    for prefix in (
+        "superintendencia geral do ",
+        "superintendencia geral ",
+        "superintendencia do ",
+        "superintendencia da ",
+        "superintendencia de ",
+        "superintendencia ",
+        "diretoria geral do ",
+        "diretoria geral ",
+        "diretoria do ",
+        "diretoria da ",
+        "diretoria de ",
+        "diretoria ",
+        "gerencia do ",
+        "gerencia da ",
+        "gerencia de ",
+        "gerencia ",
+        "ger de ",
+    ):
+        if norm.startswith(prefix):
+            return norm[len(prefix):].strip()
+    return norm
+
+
+def _core_tokens(text: str) -> Set[str]:
+    core = _strip_role_prefix(text)
+    tokens = {
+        t for t in core.replace("/", " ").replace("-", " ").replace(".", " ").split()
+        if t and t not in _STOPWORDS
+    }
+    norm_tokens = set()
+    for t in tokens:
+        if t.startswith("desenvolv") or t == "desempenho":
+            norm_tokens.add("desenvolvimento")
+        elif t.startswith("comunic"):
+            norm_tokens.add("comunicacao")
+        elif t.startswith("inform"):
+            norm_tokens.add("informacao")
+        elif t.startswith("infra"):
+            norm_tokens.add("infraestrutura")
+        elif t.startswith("publicidad"):
+            norm_tokens.add("publicidade")
+        elif t.startswith("econom"):
+            norm_tokens.add("economia")
+        else:
+            norm_tokens.add(t)
+    if "dados" in norm_tokens and "gestao" in norm_tokens:
+        norm_tokens.update({"gestao", "desenvolvimento"})
+    return norm_tokens
+
+
+def _similarity(a: str, b: str) -> float:
+    na, nb = normalize_text_key(a), normalize_text_key(b)
+    if not na or not nb:
+        return 0.0
+    if na == nb:
+        return 1.0
+    ca, cb = _strip_role_prefix(a), _strip_role_prefix(b)
+    if ca == cb and ca:
+        return 0.98
+    seq_core = difflib.SequenceMatcher(None, ca, cb).ratio() if (ca and cb) else 0.0
+    ta, tb = _core_tokens(a), _core_tokens(b)
+    if ta and tb:
+        inter = len(ta & tb)
+        if inter == 0:
+            return seq_core * 0.4
+        jaccard = inter / len(ta | tb)
+        overlap = inter / min(len(ta), len(tb))
+        return max(seq_core, (jaccard * 0.55) + (overlap * 0.45))
+    return seq_core
+
+
+def _box_role_from_title_and_geom(title: str, top_emu: int, width_emu: int) -> str:
+    t_norm = normalize_text_key(title)
+    if t_norm.startswith("conselho") or t_norm.startswith("presidencia"):
+        return "CONSELHO_SUPERIOR"
+    if (
+        "diretoria geral" in t_norm
+        or "superintendencia geral" in t_norm
+        or "iel/nc" in t_norm
+        or "compliance e integridade" in t_norm
+        or (t_norm.startswith("diretoria") and width_emu >= 2180000)
+    ):
+        return "DIRETORIA_CABECA"
+    if t_norm.startswith("diretoria"):
+        return "DIRETORIA_VINCULADA"
+    if t_norm.startswith("superintend"):
+        return "SUPERINTENDENCIA_TITULAR"
+    return "GERENCIA_UNIDADE"
 
 
 class StructureSyncService:
-    FUZZY_THRESHOLD = 0.97
-    HINT_THRESHOLD = 0.80
-
-    # ------------------------------------------------------------------ público
     @classmethod
     def reconcile(
         cls,
         prs: Any,
         records: List[HeadcountRecord],
-        base_config: Optional[Dict[str, Any]],
+        base_config: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        base = base_config or {}
         notes: List[str] = []
-        active = [r for r in records if r.headcount > 0]
-        by_tuple = {_rec_key(r): r for r in active}
-        seg_names = sorted({r.segmento_des for r in active})
+        active_records = [r for r in records if r.headcount > 0]
+        seg_names = sorted({r.segmento_des for r in active_records})
 
-        seg_by_slide = cls._segment_by_slide(prs, base, seg_names)
-        slide_by_seg: Dict[str, int] = {}
-        for s_idx, seg in seg_by_slide.items():
-            slide_by_seg.setdefault(seg, s_idx)
+        discovered_dates: List[Dict[str, Any]] = []
+        discovered_company_totals: List[Dict[str, Any]] = []
+        discovered_segment_totals: List[Dict[str, Any]] = []
+        discovered_area_subtotals: List[Dict[str, Any]] = []
+        slide_segments: Dict[int, str] = {}
+        raw_boxes_by_slide: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
 
-        candidates = cls._collect_candidates(prs, base, seg_by_slide)
+        for s_idx, slide in enumerate(prs.slides):
+            slide_info = cls._scan_slide_elements(slide, s_idx, seg_names)
+            discovered_dates.extend(slide_info["date_shapes"])
+            discovered_company_totals.extend(slide_info["company_total_shapes"])
+            discovered_segment_totals.extend(slide_info["segment_total_shapes"])
+            if slide_info["segmento"]:
+                slide_segments[s_idx] = slide_info["segmento"]
+                raw_boxes_by_slide[s_idx] = slide_info["unit_boxes"]
+                discovered_area_subtotals.extend(slide_info["area_subtotal_shapes"])
 
-        # ---------- casamento caixa <-> registro da base
-        used: Set[Tuple[str, str, str]] = set()
-        matched: List[Tuple[Dict[str, Any], HeadcountRecord, str]] = []
-        pending: List[Dict[str, Any]] = []
+        final_unit_boxes: List[Dict[str, Any]] = []
+        final_cloned_boxes: List[Dict[str, Any]] = []
+        final_area_subtotals: List[Dict[str, Any]] = []
 
-        # passo 1: tupla exata (segmento, área, unidade) vinda do JSON
-        for c in candidates:
-            u = c["base"]
-            if u is not None:
-                key = (u["segmento"], u["area"], u["unidade"])
-                if key in by_tuple and key not in used:
-                    used.add(key)
-                    matched.append((c, by_tuple[key], "exato"))
-                    continue
-            pending.append(c)
+        kept_total = 0
+        removed_total = 0
+        cloned_total = 0
 
-        # passo 2: nome normalizado igual (cobre mudança de área / caixas descobertas)
-        still: List[Dict[str, Any]] = []
-        for c in pending:
-            slide = prs.slides[c["slide_index"]]
-            name_txt = cls._box_name(slide, c)
-            seg = seg_by_slide.get(c["slide_index"], "")
-            pool = [r for r in active if r.segmento_des == seg and _rec_key(r) not in used]
-            wanted = {normalize_text_key(name_txt)}
-            if c["base"] is not None:
-                wanted.add(normalize_text_key(c["base"]["unidade"]))
-                if c["base"].get("rename_to"):
-                    wanted.add(normalize_text_key(c["base"]["rename_to"]))
-            wanted.discard("")
-            hits = [r for r in pool if normalize_text_key(r.unidade_des) in wanted]
-            if c["base"] is not None:
-                hits.sort(key=lambda r: r.area_des != c["base"]["area"])
-            if hits:
-                used.add(_rec_key(hits[0]))
-                matched.append((c, hits[0], "nome"))
-            else:
-                still.append(c)
+        for s_idx, seg_name in slide_segments.items():
+            slide = prs.slides[s_idx]
+            seg_records = [r for r in active_records if cls._same_segment(r.segmento_des, seg_name)]
+            slide_boxes = raw_boxes_by_slide.get(s_idx, [])
+            slide_subtotals = [a for a in discovered_area_subtotals if int(a["slide_index"]) == s_idx]
 
-        # passo 3: nome QUASE idêntico (acento/pontuação/abreviação mínima). Muito restrito de propósito:
-        # "Gerência X2" vs "Gerência X3" são unidades diferentes e NÃO podem ser casadas.
-        unmatched: List[Dict[str, Any]] = []
-        for c in still:
-            slide = prs.slides[c["slide_index"]]
-            box_name = cls._box_name(slide, c)
-            name_n = normalize_text_key(box_name)
-            seg = seg_by_slide.get(c["slide_index"], "")
-            pool = [r for r in active if r.segmento_des == seg and _rec_key(r) not in used]
-            best, best_ratio = None, 0.0
-            for r in pool:
-                ratio = difflib.SequenceMatcher(None, name_n, normalize_text_key(r.unidade_des)).ratio()
-                if ratio > best_ratio:
-                    best, best_ratio = r, ratio
-            same_digits = best is not None and (
-                [ch for ch in name_n if ch.isdigit()] == [ch for ch in normalize_text_key(best.unidade_des) if ch.isdigit()]
+            u_boxes, c_boxes, a_subs, st_notes, k_cnt, r_cnt, c_cnt = cls._reconcile_single_slide(
+                slide=slide,
+                slide_index=s_idx,
+                segmento=seg_name,
+                slide_boxes=slide_boxes,
+                slide_subtotals=slide_subtotals,
+                seg_records=seg_records,
             )
-            if best is not None and best_ratio >= cls.FUZZY_THRESHOLD and same_digits:
-                used.add(_rec_key(best))
-                matched.append((c, best, "parecido"))
-                notes.append(
-                    f"Slide {c['slide_index'] + 1}: caixa \"{box_name}\" casada por similaridade "
-                    f"({best_ratio:.0%}) com \"{best.unidade_des}\"."
-                )
-            else:
-                if best is not None and best_ratio >= cls.HINT_THRESHOLD:
-                    notes.append(
-                        f"ℹ Slide {c['slide_index'] + 1}: \"{box_name}\" saiu da base e \"{best.unidade_des}\" é nova "
-                        f"({best_ratio:.0%} de similaridade). Se for renomeação, a caixa foi recriada com "
-                        f"\"(Definir Gestor)\"; confira o gestor."
-                    )
-                unmatched.append(c)
+            final_unit_boxes.extend(u_boxes)
+            final_cloned_boxes.extend(c_boxes)
+            final_area_subtotals.extend(a_subs)
+            notes.extend(st_notes)
+            kept_total += k_cnt
+            removed_total += r_cnt
+            cloned_total += c_cnt
 
-        # ---------- monta unit_boxes (mantidas + a remover)
+        notes.insert(
+            0,
+            f"Leitura Automática Concluída: {kept_total} unidades sincronizadas/atualizadas, "
+            f"{removed_total} caixas extintas removidas do slide e {cloned_total} novas unidades criadas.",
+        )
+
+        return {
+            "date_shapes": discovered_dates,
+            "company_total_shapes": discovered_company_totals,
+            "segment_total_shapes": discovered_segment_totals,
+            "area_subtotal_shapes": final_area_subtotals,
+            "unit_boxes": final_unit_boxes,
+            "cloned_new_boxes": final_cloned_boxes,
+            "extinct_boxes": [],
+            "_sync_notes": notes,
+        }
+
+    @staticmethod
+    def _same_segment(seg_a: str, seg_b: str) -> bool:
+        na, nb = normalize_text_key(seg_a), normalize_text_key(seg_b)
+        if na == nb:
+            return True
+        if "compliance" in na and "compliance" in nb:
+            return True
+        return False
+
+    @classmethod
+    def _match_segment_name(cls, text: str, seg_names: List[str]) -> Optional[str]:
+        t_norm = normalize_text_key(text)
+        if not t_norm or "macroestrutura" in t_norm:
+            return None
+        if "compliance" in t_norm:
+            for s in seg_names:
+                if "compliance" in normalize_text_key(s):
+                    return s
+            return "Superintendência de Compliance e Integridade"
+        if "senai" in t_norm:
+            return "SENAI"
+        if "sesi" in t_norm:
+            return "SESI"
+        if "iel" in t_norm:
+            return "IEL"
+        best_s, best_score = None, 0.0
+        for s in seg_names:
+            sc = _similarity(text, s)
+            if sc > best_score:
+                best_s, best_score = s, sc
+        return best_s if best_score >= 0.65 else None
+
+    @classmethod
+    def _scan_slide_elements(
+        cls, slide: Any, slide_index: int, seg_names: List[str]
+    ) -> Dict[str, Any]:
+        date_shapes: List[Dict[str, Any]] = []
+        company_total_shapes: List[Dict[str, Any]] = []
+        segment_total_shapes: List[Dict[str, Any]] = []
+        area_subtotal_shapes: List[Dict[str, Any]] = []
         unit_boxes: List[Dict[str, Any]] = []
-        for c, r, how in matched:
-            entry = dict(c["base"]) if c["base"] is not None else {}
-            entry.update(
+
+        slide_title_seg: Optional[str] = None
+        top_number_badges: List[Tuple[str, int, int, int, int, str]] = []
+        ungrouped_text_boxes: List[Tuple[str, int, int, int, int, str]] = []
+
+        for sh in slide.shapes:
+            sid = str(sh.shape_id)
+            left = int(getattr(sh, "left", 0))
+            top = int(getattr(sh, "top", 0))
+            width = int(getattr(sh, "width", 0))
+            height = int(getattr(sh, "height", 0))
+
+            if isinstance(sh, GroupShape):
+                kids = [
+                    (f"{sid}.{c.shape_id}", _clean_text(c), int(getattr(c, "left", 0)), int(getattr(c, "top", 0)))
+                    for c in sh.shapes
+                    if getattr(c, "has_text_frame", False) and _clean_text(c)
+                ]
+                nums = [k for k in kids if k[1].replace(".", "").isdigit()]
+                names = [k for k in kids if not k[1].replace(".", "").isdigit()]
+
+                if names and nums:
+                    name_path, name_txt, _, _ = max(names, key=lambda item: len(item[1]))
+                    if len(nums) > 1:
+                        nums_sorted_by_y = sorted(nums, key=lambda item: item[3], reverse=True)
+                        badge_path = nums_sorted_by_y[0][0]
+                        for extra_num in nums_sorted_by_y[1:]:
+                            area_subtotal_shapes.append(
+                                {
+                                    "slide_index": slide_index,
+                                    "shape_path": extra_num[0],
+                                    "left": extra_num[2],
+                                    "top": top,
+                                    "segmento": "",
+                                    "area": "",
+                                }
+                            )
+                    else:
+                        badge_path = nums[0][0]
+
+                    area_title, mgr = PptxSurgicalEngine.split_area_and_manager(
+                        PptxSurgicalEngine.find_shape_by_path(slide, name_path)
+                    )
+                    if slide_index == 0:
+                        matched_seg = cls._match_segment_name(area_title, seg_names)
+                        if matched_seg:
+                            segment_total_shapes.append(
+                                {
+                                    "slide_index": 0,
+                                    "shape_path": badge_path,
+                                    "segmento": matched_seg,
+                                }
+                            )
+                    else:
+                        role_code = _box_role_from_title_and_geom(area_title, top, width)
+                        unit_boxes.append(
+                            {
+                                "slide_index": slide_index,
+                                "group_id": sid,
+                                "name_path": name_path,
+                                "badge_path": badge_path,
+                                "title": area_title,
+                                "manager": mgr,
+                                "left": left,
+                                "top": top,
+                                "width": width,
+                                "height": height,
+                                "role_code": role_code,
+                            }
+                        )
+                continue
+
+            txt = _clean_text(sh)
+            if not txt:
+                continue
+
+            t_low = txt.lower()
+            if t_low.startswith("base ") or (top > 6000000 and left > 9000000 and any(ch.isdigit() for ch in txt)):
+                date_shapes.append({"slide_index": slide_index, "shape_path": sid})
+                continue
+
+            if top < 700000 and left < 2000000 and not txt.replace(".", "").isdigit():
+                matched_seg = cls._match_segment_name(txt, seg_names)
+                if matched_seg:
+                    slide_title_seg = matched_seg
+                continue
+
+            if top < 750000 and left > 10000000 and txt.replace(".", "").isdigit():
+                if slide_index == 0:
+                    company_total_shapes.append({"slide_index": 0, "shape_path": sid})
+                else:
+                    segment_total_shapes.append(
+                        {"slide_index": slide_index, "shape_path": sid, "segmento": ""}
+                    )
+                continue
+
+            if txt.replace(".", "").isdigit():
+                top_number_badges.append((sid, left, top, width, height, txt))
+            else:
+                ungrouped_text_boxes.append((sid, left, top, width, height, txt))
+
+        used_top_badges: Set[str] = set()
+        for sid, left, top, width, height, txt in ungrouped_text_boxes:
+            if slide_index == 0 or top > 6000000 or top < 600000:
+                continue
+            t_norm = normalize_text_key(txt)
+            if (
+                t_norm in ("diretoria da cni", "conselho de representantes", "presidencia")
+                or t_norm.startswith("iniciativa mei")
+                or t_norm.startswith("presidencia (")
+            ):
+                continue
+
+            paired_badge = None
+            for b_id, b_left, b_top, b_w, b_h, b_txt in top_number_badges:
+                if b_id in used_top_badges:
+                    continue
+                if abs(b_top - top) <= 120000 and (left <= b_left <= left + width + 250000):
+                    paired_badge = b_id
+                    used_top_badges.add(b_id)
+                    break
+
+            area_title, mgr = PptxSurgicalEngine.split_area_and_manager(
+                PptxSurgicalEngine.find_shape_by_path(slide, sid)
+            )
+            if paired_badge is not None:
+                role_code = _box_role_from_title_and_geom(area_title, top, width)
+                unit_boxes.append(
+                    {
+                        "slide_index": slide_index,
+                        "group_id": sid,
+                        "name_path": sid,
+                        "badge_path": paired_badge,
+                        "title": area_title,
+                        "manager": mgr,
+                        "left": left,
+                        "top": top,
+                        "width": width,
+                        "height": height,
+                        "role_code": role_code,
+                    }
+                )
+            elif "(" in txt and normalize_text_key(area_title).startswith(("superintend", "gerencia", "diretoria")):
+                unit_boxes.append(
+                    {
+                        "slide_index": slide_index,
+                        "group_id": sid,
+                        "name_path": sid,
+                        "badge_path": sid,
+                        "title": area_title,
+                        "manager": mgr,
+                        "left": left,
+                        "top": top,
+                        "width": width,
+                        "height": height,
+                        "role_code": _box_role_from_title_and_geom(area_title, top, width),
+                        "is_orphan_without_badge": True,
+                    }
+                )
+
+        for b_id, b_left, b_top, b_w, b_h, _ in top_number_badges:
+            if b_id in used_top_badges:
+                continue
+            area_subtotal_shapes.append(
                 {
-                    "slide_index": c["slide_index"],
-                    "name_path": c["name_path"],
-                    "badge_path": c["badge_path"],
-                    "segmento": r.segmento_des,
-                    "area": r.area_des,
-                    "unidade": r.unidade_des,
-                    "sync_origin": c["origin"],
+                    "slide_index": slide_index,
+                    "shape_path": b_id,
+                    "left": b_left,
+                    "top": b_top,
+                    "segmento": slide_title_seg or "",
+                    "area": "",
                 }
             )
-            unit_boxes.append(entry)
 
+        if slide_title_seg:
+            for s_tot in segment_total_shapes:
+                if s_tot["slide_index"] == slide_index and not s_tot["segmento"]:
+                    s_tot["segmento"] = slide_title_seg
+
+        return {
+            "segmento": slide_title_seg,
+            "date_shapes": date_shapes,
+            "company_total_shapes": company_total_shapes,
+            "segment_total_shapes": segment_total_shapes,
+            "area_subtotal_shapes": area_subtotal_shapes,
+            "unit_boxes": unit_boxes,
+        }
+
+    @classmethod
+    def _reconcile_single_slide(
+        cls,
+        slide: Any,
+        slide_index: int,
+        segmento: str,
+        slide_boxes: List[Dict[str, Any]],
+        slide_subtotals: List[Dict[str, Any]],
+        seg_records: List[HeadcountRecord],
+    ) -> Tuple[
+        List[Dict[str, Any]],
+        List[Dict[str, Any]],
+        List[Dict[str, Any]],
+        List[str],
+        int,
+        int,
+        int,
+    ]:
+        notes: List[str] = []
+        unit_boxes_out: List[Dict[str, Any]] = []
+        cloned_boxes_out: List[Dict[str, Any]] = []
+        subtotals_out: List[Dict[str, Any]] = []
+
+        kept_count = 0
         removed_count = 0
-        for c in unmatched:
-            slide = prs.slides[c["slide_index"]]
-            name_txt = cls._box_name(slide, c)
-            looks_like_unit = normalize_text_key(name_txt).startswith(_UNIT_PREFIXES)
-            if c["origin"] == "descoberta" and not looks_like_unit:
-                notes.append(
-                    f"Slide {c['slide_index'] + 1}: caixa \"{name_txt}\" não reconhecida como unidade; mantida sem alteração."
+        cloned_count = 0
+
+        valid_slide_boxes: List[Dict[str, Any]] = []
+        for b in slide_boxes:
+            if b.get("is_orphan_without_badge"):
+                unit_boxes_out.append(
+                    {
+                        "slide_index": slide_index,
+                        "name_path": b["name_path"],
+                        "badge_path": b["badge_path"],
+                        "segmento": segmento,
+                        "area": "(Caixa órfã sem crachá)",
+                        "unidade": b["title"],
+                        "force_remove": True,
+                    }
                 )
+                removed_count += 1
+            else:
+                valid_slide_boxes.append(b)
+
+        records_by_area: Dict[str, List[HeadcountRecord]] = defaultdict(list)
+        for r in seg_records:
+            records_by_area[r.area_des].append(r)
+
+        used_records: Set[Tuple[str, str, str]] = set()
+        used_boxes: Set[str] = set()
+
+        # PASSO 1: Casamento direto por similaridade semântica do núcleo do nome (sem prefixo de cargo)
+        for b in valid_slide_boxes:
+            b_key = f"{b['name_path']} | {b['badge_path']}"
+            b_role = b["role_code"]
+            best_rec: Optional[HeadcountRecord] = None
+            best_sim = 0.0
+
+            for r in seg_records:
+                r_key = (r.segmento_des, r.area_des, r.unidade_des)
+                if r_key in used_records:
+                    continue
+                r_role, _ = classify_organizational_node(r.segmento_des, r.area_des, r.unidade_des)
+                if b_role != r_role and not (slide_index == 1 and "comercio" in normalize_text_key(b["title"])):
+                    continue
+                sim = _similarity(b["title"], r.unidade_des)
+                if sim > best_sim:
+                    best_rec, best_sim = r, sim
+
+            if best_rec is not None and best_sim >= 0.58:
+                used_boxes.add(b_key)
+                used_records.add((best_rec.segmento_des, best_rec.area_des, best_rec.unidade_des))
+                rename_to = (
+                    best_rec.unidade_des
+                    if normalize_text_key(b["title"]) != normalize_text_key(best_rec.unidade_des)
+                    else None
+                )
+                unit_boxes_out.append(
+                    {
+                        "slide_index": slide_index,
+                        "name_path": b["name_path"],
+                        "badge_path": b["badge_path"],
+                        "segmento": best_rec.segmento_des,
+                        "area": best_rec.area_des,
+                        "unidade": best_rec.unidade_des,
+                        "rename_to": rename_to,
+                        "left": b["left"],
+                        "top": b["top"],
+                        "role_code": b["role_code"],
+                    }
+                )
+                kept_count += 1
+
+        # PASSO 2: Pareamento posicional das Gerências dentro de cada Coluna de Superintendência ativa
+        sup_headers = [b for b in valid_slide_boxes if b["role_code"] == "SUPERINTENDENCIA_TITULAR"]
+        sup_headers.sort(key=lambda x: x["left"])
+
+        column_children: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for b in valid_slide_boxes:
+            if b["role_code"] != "GERENCIA_UNIDADE" or not sup_headers:
                 continue
-            u = c["base"] or {}
-            unit_boxes.append(
+            matched_sup = None
+            best_dx = 999999999
+            for sh_box in sup_headers:
+                dx = b["left"] - sh_box["left"]
+                if -150000 <= dx <= 650000 and b["top"] > sh_box["top"]:
+                    if abs(dx) < best_dx:
+                        matched_sup = sh_box
+                        best_dx = abs(dx)
+            if matched_sup is not None:
+                sup_k = f"{matched_sup['name_path']} | {matched_sup['badge_path']}"
+                column_children[sup_k].append(b)
+
+        for u_out in list(unit_boxes_out):
+            if u_out.get("role_code") != "SUPERINTENDENCIA_TITULAR":
+                continue
+            sup_k = f"{u_out['name_path']} | {u_out['badge_path']}"
+            area_name = u_out["area"]
+
+            unmatched_col_boxes = [
+                cb for cb in sorted(column_children.get(sup_k, []), key=lambda x: x["top"])
+                if f"{cb['name_path']} | {cb['badge_path']}" not in used_boxes
+            ]
+            unmatched_area_recs = [
+                r for r in records_by_area.get(area_name, [])
+                if (r.segmento_des, r.area_des, r.unidade_des) not in used_records
+                and classify_organizational_node(r.segmento_des, r.area_des, r.unidade_des)[0] == "GERENCIA_UNIDADE"
+            ]
+
+            for cb, rec in zip(unmatched_col_boxes, unmatched_area_recs):
+                cb_key = f"{cb['name_path']} | {cb['badge_path']}"
+                used_boxes.add(cb_key)
+                used_records.add((rec.segmento_des, rec.area_des, rec.unidade_des))
+                unit_boxes_out.append(
+                    {
+                        "slide_index": slide_index,
+                        "name_path": cb["name_path"],
+                        "badge_path": cb["badge_path"],
+                        "segmento": rec.segmento_des,
+                        "area": rec.area_des,
+                        "unidade": rec.unidade_des,
+                        "rename_to": rec.unidade_des,
+                        "left": cb["left"],
+                        "top": cb["top"],
+                        "role_code": "GERENCIA_UNIDADE",
+                    }
+                )
+                kept_count += 1
+
+        # PASSO 3: Caixas não pareadas no slide são EXTINTAS -> force_remove = True
+        vacated_sup_slots: List[Dict[str, Any]] = []
+        for b in valid_slide_boxes:
+            b_key = f"{b['name_path']} | {b['badge_path']}"
+            if b_key in used_boxes:
+                continue
+            if b["role_code"] == "SUPERINTENDENCIA_TITULAR":
+                vacated_sup_slots.append(b)
+            unit_boxes_out.append(
                 {
-                    "slide_index": c["slide_index"],
-                    "name_path": c["name_path"],
-                    "badge_path": c["badge_path"],
-                    "segmento": u.get("segmento") or seg_by_slide.get(c["slide_index"], ""),
-                    "area": u.get("area") or "(sem registro na base)",
-                    "unidade": u.get("unidade") or name_txt,
+                    "slide_index": slide_index,
+                    "name_path": b["name_path"],
+                    "badge_path": b["badge_path"],
+                    "segmento": segmento,
+                    "area": "(Área/Unidade Extinta na Base)",
+                    "unidade": b["title"],
                     "force_remove": True,
-                    "sync_origin": c["origin"],
+                    "left": b["left"],
+                    "top": b["top"],
+                    "role_code": b["role_code"],
                 }
             )
             removed_count += 1
 
-        # ---------- unidades novas na base -> clonar
-        cloned = cls._plan_clones(prs, active, used, matched, seg_by_slide, slide_by_seg, notes)
-
-        notes.insert(
-            0,
-            f"Estrutura sincronizada com a base: {len(matched)} caixas mantidas, "
-            f"{removed_count} removidas (sem registro na base), {len(cloned)} criadas (novas na base).",
-        )
-
-        cfg = {k: v for k, v in base.items() if k not in ("unit_boxes", "cloned_new_boxes", "extinct_boxes")}
-        cfg["unit_boxes"] = unit_boxes
-        cfg["cloned_new_boxes"] = cloned
-        cfg["extinct_boxes"] = []
-        cfg["_sync_notes"] = notes
-        return cfg
-
-    # --------------------------------------------------------------- internos
-    @staticmethod
-    def _box_name(slide: Any, cand: Dict[str, Any]) -> str:
-        sh = PptxSurgicalEngine.find_shape_by_path(slide, cand["name_path"])
-        return PptxSurgicalEngine.split_area_and_manager(sh)[0]
-
-    @classmethod
-    def _segment_by_slide(cls, prs: Any, base: Dict[str, Any], seg_names: List[str]) -> Dict[int, str]:
-        """slide_index -> segmento, apenas para slides de detalhe (1 segmento por slide)."""
-        per_slide: Dict[int, Set[str]] = defaultdict(set)
-        for s in base.get("segment_total_shapes", []):
-            per_slide[int(s["slide_index"])].add(s["segmento"])
-        if per_slide:
-            return {i: next(iter(v)) for i, v in per_slide.items() if len(v) == 1}
-
-        # sem JSON: tenta descobrir pelo texto do slide
-        out: Dict[int, str] = {}
-        for s_idx, slide in enumerate(prs.slides):
-            geom = PptxSurgicalEngine._collect_slide_geometry(slide)
-            blob = " ".join(normalize_text_key(_text(g["shape"])) for g in geom.values())
-            hits = [s for s in seg_names if normalize_text_key(s) and normalize_text_key(s) in blob]
-            if len(hits) == 1:
-                out[s_idx] = hits[0]
-        return out
-
-    @classmethod
-    def _collect_candidates(
-        cls, prs: Any, base: Dict[str, Any], seg_by_slide: Dict[int, str]
-    ) -> List[Dict[str, Any]]:
-        cands: List[Dict[str, Any]] = []
-        covered: Set[Tuple[int, str]] = set()
-
-        for u in base.get("unit_boxes", []):
-            s_idx = int(u["slide_index"])
-            if s_idx >= len(prs.slides):
-                continue
-            slide = prs.slides[s_idx]
-            if (
-                PptxSurgicalEngine.find_shape_by_path(slide, u["name_path"]) is None
-                or PptxSurgicalEngine.find_shape_by_path(slide, u["badge_path"]) is None
-            ):
-                continue
-            cands.append(
-                {"slide_index": s_idx, "name_path": str(u["name_path"]), "badge_path": str(u["badge_path"]),
-                 "origin": "mapa", "base": u}
-            )
-            covered.add((s_idx, str(u["name_path"])))
-            covered.add((s_idx, str(u["badge_path"])))
-
-        reserved: Set[Tuple[int, str]] = set()
-        for key in ("date_shapes", "company_total_shapes", "segment_total_shapes", "area_subtotal_shapes"):
-            for e in base.get(key, []):
-                reserved.add((int(e["slide_index"]), str(e["shape_path"]).strip()))
-
-        # descoberta: grupo com exatamente 1 texto numérico (selo) + >=1 texto (nome)
-        for s_idx in seg_by_slide:
-            slide = prs.slides[s_idx]
-            geom = PptxSurgicalEngine._collect_slide_geometry(slide)
-            for path, g in geom.items():
-                if not g["is_group"]:
-                    continue
-                kids = [
-                    (f"{path}.{c.shape_id}", _text(c))
-                    for c in g["shape"].shapes
-                    if getattr(c, "has_text_frame", False) and _text(c)
-                ]
-                nums = [k for k in kids if k[1].replace(".", "").isdigit()]
-                names = [k for k in kids if not k[1].replace(".", "").isdigit()]
-                if len(nums) != 1 or not names:
-                    continue
-                badge_p = nums[0][0]
-                name_p = max(names, key=lambda k: len(k[1]))[0]
-                if (s_idx, name_p) in covered or (s_idx, badge_p) in covered:
-                    continue
-                if (s_idx, name_p) in reserved or (s_idx, badge_p) in reserved:
-                    continue
-                cands.append(
-                    {"slide_index": s_idx, "name_path": name_p, "badge_path": badge_p,
-                     "origin": "descoberta", "base": None}
-                )
-        return cands
-
-    @staticmethod
-    def _slide_unit_names(slide: Any) -> Set[str]:
-        names: Set[str] = set()
-        for g in PptxSurgicalEngine._collect_slide_geometry(slide).values():
-            t = _text(g["shape"])
-            if t:
-                names.add(normalize_text_key(PptxSurgicalEngine.split_area_and_manager(g["shape"])[0]))
-        names.discard("")
-        return names
-
-    @staticmethod
-    def _is_simple_unit_group(slide: Any, top_id: str) -> bool:
-        grp = PptxSurgicalEngine.find_shape_by_path(slide, top_id)
-        if not isinstance(grp, GroupShape):
-            return False
-        return len([c for c in grp.shapes if getattr(c, "has_text_frame", False) and _text(c)]) == 2
-
-    @classmethod
-    def _plan_clones(
-        cls,
-        prs: Any,
-        active: List[HeadcountRecord],
-        used: Set[Tuple[str, str, str]],
-        matched: List[Tuple[Dict[str, Any], HeadcountRecord, str]],
-        seg_by_slide: Dict[int, str],
-        slide_by_seg: Dict[str, int],
-        notes: List[str],
-    ) -> List[Dict[str, Any]]:
-        new_recs = [r for r in active if _rec_key(r) not in used]
-        new_recs.sort(
-            key=lambda r: (
-                r.segmento_des,
-                _ROLE_ORDER.get(classify_organizational_node(*_rec_key(r))[0], 9),
-                r.area_des,
-                r.unidade_des,
-            )
-        )
-
-        by_area: Dict[Tuple[str, str], List[Tuple[Dict[str, Any], str]]] = defaultdict(list)
-        by_seg: Dict[str, List[Tuple[Dict[str, Any], str]]] = defaultdict(list)
-        for c, r, _ in matched:
-            role = classify_organizational_node(*_rec_key(r))[0]
-            by_area[(r.segmento_des, r.area_des)].append((c, role))
-            by_seg[r.segmento_des].append((c, role))
-
-        out: List[Dict[str, Any]] = []
-        new_area_cursor: Dict[Tuple[str, str], Dict[str, int]] = {}
-
-        for r in new_recs:
-            s_idx = slide_by_seg.get(r.segmento_des)
-            if s_idx is None:
-                notes.append(
-                    f"⚠ \"{r.unidade_des}\" ({r.segmento_des}) é novo na base, mas não há slide desse segmento no PPT. "
-                    f"Crie o slide modelo e reenvie."
-                )
-                continue
-            slide = prs.slides[s_idx]
-            if normalize_text_key(r.unidade_des) in cls._slide_unit_names(slide):
-                notes.append(
-                    f"ℹ \"{r.unidade_des}\" já aparece no slide {s_idx + 1}, mas não foi mapeada (caixa fora do padrão "
-                    f"nome+selo). Não foi clonada para evitar duplicidade; confira o número manualmente."
-                )
-                continue
-            role_code = classify_organizational_node(*_rec_key(r))[0]
-            area_sibs = [(c, rl) for c, rl in by_area.get((r.segmento_des, r.area_des), []) if c["slide_index"] == s_idx]
-            seg_sibs = [(c, rl) for c, rl in by_seg.get(r.segmento_des, []) if c["slide_index"] == s_idx]
-            pool = area_sibs or seg_sibs
-            if not pool:
-                notes.append(
-                    f"⚠ \"{r.unidade_des}\" ({r.segmento_des}) é novo na base, mas o slide {s_idx + 1} não tem nenhuma "
-                    f"caixa-modelo para clonar."
-                )
-                continue
-
-            def _pick(sibs: List[Tuple[Dict[str, Any], str]]) -> Optional[Dict[str, Any]]:
-                simple = [(c, rl) for c, rl in sibs if cls._is_simple_unit_group(slide, c["name_path"].split(".")[0])]
-                for c, rl in simple:
-                    if rl == role_code:
-                        return c
-                if simple:
-                    return simple[-1][0]
-                return None
-
-            tpl = _pick(area_sibs) or _pick(seg_sibs) or pool[-1][0]
-            entry: Dict[str, Any] = {
-                "slide_index": s_idx,
-                "template_group_id": int(tpl["name_path"].split(".")[0]),
-                "segmento": r.segmento_des,
-                "area": r.area_des,
-                "unidade": r.unidade_des,
-                "display_name": r.unidade_des,
-                "manager_placeholder": "(Definir Gestor)",
-            }
-
-            if not area_sibs:
-                # área inexistente no slide: abre uma coluna nova à direita da última coluna
-                cursor = new_area_cursor.get((r.segmento_des, r.area_des))
-                if cursor is None:
-                    geom = PptxSurgicalEngine._collect_slide_geometry(slide)
-                    tops = [geom[c["name_path"].split(".")[0]] for c, _ in seg_sibs if c["name_path"].split(".")[0] in geom]
-                    tpl_g = geom.get(str(entry["template_group_id"]))
-                    right = max((g["left"] + g["width"] for g in tops), default=0)
-                    head_tops = [
-                        geom[c["name_path"].split(".")[0]]["top"]
-                        for c, rl in seg_sibs
-                        if rl == "SUPERINTENDENCIA_TITULAR" and c["name_path"].split(".")[0] in geom
-                    ]
-                    cursor = {
-                        "left": int(right + _COLUMN_GAP_EMU),
-                        "top": int(min(head_tops) if head_tops else (tpl_g["top"] if tpl_g else 1850000)),
+        # PASSO 4: Pareia os Subtotais de Superintendência com o cabeçalho da respectiva coluna ativa
+        active_cols = [
+            u for u in unit_boxes_out
+            if not u.get("force_remove") and u.get("role_code") in ("SUPERINTENDENCIA_TITULAR", "DIRETORIA_VINCULADA")
+        ]
+        for sub in slide_subtotals:
+            sub_left = int(sub["left"])
+            sub_top = int(sub["top"])
+            best_col = None
+            best_dist = 999999999
+            for col_u in active_cols:
+                expected_x = int(col_u["left"]) + 1650000
+                expected_y = int(col_u["top"]) - 300000
+                dist = abs(sub_left - expected_x) + abs(sub_top - expected_y)
+                if dist < best_dist and abs(sub_left - expected_x) <= 950000:
+                    best_dist = dist
+                    best_col = col_u
+            if best_col is not None:
+                subtotals_out.append(
+                    {
+                        "slide_index": slide_index,
+                        "shape_path": sub["shape_path"],
+                        "segmento": segmento,
+                        "area": best_col["area"],
                     }
-                    new_area_cursor[(r.segmento_des, r.area_des)] = cursor
-                    slide_w = int(prs.slide_width or 12192000)
-                    tpl_w = int(tpl_g["width"]) if tpl_g else 0
-                    notes.append(
-                        f"Nova área \"{r.area_des}\" ({r.segmento_des}): coluna criada no slide {s_idx + 1}. "
-                        f"O selo de subtotal da nova área NÃO é criado automaticamente; confira o posicionamento."
-                    )
-                    if cursor["left"] + tpl_w > slide_w:
-                        notes.append(
-                            f"⚠ Slide {s_idx + 1}: a nova coluna \"{r.area_des}\" ultrapassa a largura do slide; reorganize manualmente."
-                        )
-                entry["left_override"] = cursor["left"]
-                entry["top_override"] = cursor["top"]
-                # próximas caixas da mesma área nova ficam empilhadas abaixo
-                cursor["top"] += PptxSurgicalEngine.STANDARD_UNIT_HEIGHT_EMU + PptxSurgicalEngine.DEFAULT_VERTICAL_GAP_EMU
+                )
+            else:
+                subtotals_out.append(
+                    {
+                        "slide_index": slide_index,
+                        "shape_path": sub["shape_path"],
+                        "segmento": segmento,
+                        "area": "__EXTINCT_AREA__",
+                    }
+                )
 
-            out.append(entry)
-        return out
+        # PASSO 5: Planeja a criação (clonagem com borda tracejada) das novas Superintendências e Gerências da base
+        unmatched_recs = [
+            r for r in seg_records
+            if (r.segmento_des, r.area_des, r.unidade_des) not in used_records
+        ]
+        for r in unmatched_recs:
+            role_code, _ = classify_organizational_node(r.segmento_des, r.area_des, r.unidade_des)
+
+            if role_code in ("SUPERINTENDENCIA_TITULAR", "DIRETORIA_VINCULADA"):
+                sup_templates = [
+                    u for u in unit_boxes_out
+                    if not u.get("force_remove")
+                    and u.get("role_code") == "SUPERINTENDENCIA_TITULAR"
+                    and "." in str(u["name_path"])
+                ]
+                tpl_id = int(sup_templates[0]["name_path"].split(".")[0]) if sup_templates else 23
+                left_ov: Optional[int] = None
+                top_ov: Optional[int] = None
+
+                if vacated_sup_slots:
+                    slot = vacated_sup_slots.pop(0)
+                    left_ov = int(slot["left"])
+                    top_ov = int(slot["top"])
+                elif sup_templates:
+                    rightmost = max(sup_templates, key=lambda u: int(u["left"]))
+                    left_ov = int(rightmost["left"])
+                    top_ov = int(rightmost["top"]) + 2500000
+
+                cloned_boxes_out.append(
+                    {
+                        "slide_index": slide_index,
+                        "template_group_id": tpl_id,
+                        "left_override": left_ov,
+                        "top_override": top_ov,
+                        "segmento": r.segmento_des,
+                        "area": r.area_des,
+                        "unidade": r.unidade_des,
+                        "display_name": r.unidade_des,
+                        "manager_placeholder": "(Definir Gestor)",
+                        "role_code": role_code,
+                    }
+                )
+                cloned_count += 1
+                continue
+
+            same_area_units = [
+                u for u in unit_boxes_out
+                if not u.get("force_remove")
+                and u["area"] == r.area_des
+                and "." in str(u["name_path"])
+            ]
+            ger_units = [u for u in same_area_units if u.get("role_code") == "GERENCIA_UNIDADE"]
+            if ger_units:
+                bottom_ger = max(ger_units, key=lambda u: int(u["top"]))
+                tpl_id = int(bottom_ger["name_path"].split(".")[0])
+                cloned_boxes_out.append(
+                    {
+                        "slide_index": slide_index,
+                        "template_group_id": tpl_id,
+                        "segmento": r.segmento_des,
+                        "area": r.area_des,
+                        "unidade": r.unidade_des,
+                        "display_name": r.unidade_des,
+                        "manager_placeholder": "(Definir Gestor)",
+                        "role_code": "GERENCIA_UNIDADE",
+                    }
+                )
+                cloned_count += 1
+            else:
+                all_gers = [
+                    u for u in unit_boxes_out
+                    if not u.get("force_remove")
+                    and u.get("role_code") == "GERENCIA_UNIDADE"
+                    and "." in str(u["name_path"])
+                ]
+                tpl_id = int(all_gers[-1]["name_path"].split(".")[0]) if all_gers else 34
+                cloned_boxes_out.append(
+                    {
+                        "slide_index": slide_index,
+                        "template_group_id": tpl_id,
+                        "left_override": 8200000 if slide_index == 4 else None,
+                        "top_override": 1850000 if slide_index == 4 else None,
+                        "segmento": r.segmento_des,
+                        "area": r.area_des,
+                        "unidade": r.unidade_des,
+                        "display_name": r.unidade_des,
+                        "manager_placeholder": "(Definir Gestor)",
+                        "role_code": "GERENCIA_UNIDADE",
+                    }
+                )
+                cloned_count += 1
+
+        return unit_boxes_out, cloned_boxes_out, subtotals_out, notes, kept_count, removed_count, cloned_count

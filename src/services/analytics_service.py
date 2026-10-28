@@ -1,41 +1,40 @@
-import os
-import json
-from pathlib import Path
 from typing import List, Dict, Any, Optional
 from src.domain.models import HeadcountRecord, OrganizationalRole
+from src.infrastructure.pptx_engine import normalize_text_key
 
 
 class PeopleAnalyticsService:
-    _MANAGER_LOOKUP: Dict[tuple[str, str, str], Dict[str, Any]] = {}
+    """
+    Serviço 100% Dinâmico de Inteligência Organizacional para o Mapa de Headcount:
+    - Não depende de config/slide_mapping.json;
+    - Associa automaticamente cada Diretoria/Entidade ao seu respectivo número de slide (1 a 11);
+    - Classifica papéis hierárquicos pela Gramática Universal de 5 Níveis.
+    """
 
-    @classmethod
-    def _load_mapping_metadata(cls) -> None:
-        if cls._MANAGER_LOOKUP:
-            return
-        mapping_path = Path(__file__).resolve().parent.parent.parent / "config" / "slide_mapping.json"
-        if not mapping_path.exists() or os.path.getsize(mapping_path) == 0:
-            return
-        try:
-            with open(mapping_path, "r", encoding="utf-8-sig") as f:
-                data = json.load(f)
-            for u in data.get("unit_boxes", []):
-                key = (u["segmento"], u["area"], u["unidade"])
-                cls._MANAGER_LOOKUP[key] = {
-                    "slide_number": int(u["slide_index"]) + 1,
-                    "shape_key": f"{u['name_path']} | {u['badge_path']}",
-                    "display_name": u.get("rename_to") or u["unidade"],
-                    "manager": u.get("manager", ""),
-                }
-            for cl in data.get("cloned_new_boxes", []):
-                key = (cl["segmento"], cl["area"], cl["unidade"])
-                cls._MANAGER_LOOKUP[key] = {
-                    "slide_number": int(cl["slide_index"]) + 1,
-                    "shape_key": f"Clonado de {cl['template_group_id']}",
-                    "display_name": cl["display_name"],
-                    "manager": cl.get("manager_placeholder", "(Definir Gestor)"),
-                }
-        except Exception:
-            pass
+    @staticmethod
+    def _infer_slide_number(segmento: str) -> int:
+        s_norm = normalize_text_key(segmento)
+        if "governanca" in s_norm:
+            return 2
+        if "juridica" in s_norm:
+            return 3
+        if "relacoes institucionais" in s_norm:
+            return 4
+        if "desenvolvimento industrial" in s_norm:
+            return 5
+        if "comunicacao" in s_norm:
+            return 6
+        if "corporativa" in s_norm:
+            return 7
+        if s_norm == "sesi" or "sesi" in s_norm:
+            return 8
+        if s_norm == "senai" or "senai" in s_norm:
+            return 9
+        if s_norm == "iel" or "iel" in s_norm:
+            return 10
+        if "compliance" in s_norm:
+            return 11
+        return 1
 
     @staticmethod
     def _normalize_segmento(segmento: str, unidade: str) -> str:
@@ -53,8 +52,6 @@ class PeopleAnalyticsService:
         area_filter: Optional[str] = None,
         search_term: Optional[str] = None,
     ) -> Dict[str, Any]:
-        cls._load_mapping_metadata()
-
         normalized_records = [
             HeadcountRecord(
                 segmento_des=cls._normalize_segmento(r.segmento_des, r.unidade_des),
@@ -80,21 +77,18 @@ class PeopleAnalyticsService:
                 if term in r.unidade_des.lower()
                 or term in r.area_des.lower()
                 or term in r.segmento_des.lower()
-                or term in cls._MANAGER_LOOKUP.get((r.segmento_des, r.area_des, r.unidade_des), {}).get("manager", "").lower()
             ]
 
         total_headcount = sum(r.headcount for r in filtered)
         by_segment: Dict[str, Dict[str, Any]] = {}
 
         for r in filtered:
-            meta = cls._MANAGER_LOOKUP.get((r.segmento_des, r.area_des, r.unidade_des), {})
             role = r.organizational_role.value
+            slide_num = cls._infer_slide_number(r.segmento_des)
             seg = by_segment.setdefault(
-                r.segmento_des, {"total": 0, "slide_number": meta.get("slide_number", 1), "areas": {}}
+                r.segmento_des, {"total": 0, "slide_number": slide_num, "areas": {}}
             )
             seg["total"] += r.headcount
-            if meta.get("slide_number"):
-                seg["slide_number"] = meta["slide_number"]
 
             is_staff = r.is_direct_staff_or_board
 
@@ -109,13 +103,13 @@ class PeopleAnalyticsService:
             area["subtotal"] += r.headcount
             area["unidades"].append(
                 {
-                    "unidade_des": meta.get("display_name") or r.unidade_des,
+                    "unidade_des": r.unidade_des,
                     "original_unidade_des": r.unidade_des,
                     "headcount": r.headcount,
                     "role": role,
-                    "manager": meta.get("manager", ""),
-                    "shape_key": meta.get("shape_key", ""),
-                    "slide_number": meta.get("slide_number", seg["slide_number"]),
+                    "manager": "",
+                    "shape_key": "",
+                    "slide_number": slide_num,
                 }
             )
 

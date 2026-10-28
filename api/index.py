@@ -39,7 +39,7 @@ APP_SECRET = (os.getenv("APP_SECRET_KEY") or "cni-secret-key-2026").strip()
 
 app = FastAPI(
     title="Sistema Indústria | People Analytics - Estrutura Organizacional",
-    version="1.7.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -58,14 +58,17 @@ def _append_server_audit_log(username: str, action: str, details: str) -> None:
         log_list = []
         if TMP_AUDIT_LOG_PATH.exists():
             log_list = json.loads(TMP_AUDIT_LOG_PATH.read_text(encoding="utf-8"))
-        
+
         timestamp = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
-        log_list.insert(0, {
-            "timestamp": timestamp,
-            "username": username,
-            "action": action,
-            "details": details
-        })
+        log_list.insert(
+            0,
+            {
+                "timestamp": timestamp,
+                "username": username,
+                "action": action,
+                "details": details,
+            },
+        )
         if len(log_list) > 100:
             log_list = log_list[:100]
         TMP_AUDIT_LOG_PATH.write_text(json.dumps(log_list, ensure_ascii=False), encoding="utf-8")
@@ -309,7 +312,7 @@ async def upload_headcount_data_endpoint(
         _append_server_audit_log(
             user["username"],
             "UPLOAD_BASE",
-            f"Arquivo '{data_file.filename}' carregado com sucesso. Competência: {meta['ano_mes']} ({len(records)} registros)."
+            f"Arquivo '{data_file.filename}' carregado com sucesso. Competência: {meta['ano_mes']} ({len(records)} registros).",
         )
 
         summary = PeopleAnalyticsService.build_organization_summary(records=records)
@@ -408,9 +411,7 @@ async def update_powerpoint_endpoint(
         else:
             effective_label = meta["label"]
 
-        if not MAPPING_JSON_PATH.exists():
-            raise FileNotFoundError(f"Arquivo de mapeamento não encontrado: {MAPPING_JSON_PATH}")
-
+        # O arquivo slide_mapping.json agora é 100% opcional: a leitura geométrica descobre tudo em memória
         updater = PresentationUpdaterService(mapping_json_path=str(MAPPING_JSON_PATH))
         updated_pptx_bytes, report = updater.execute_update(
             pptx_stream=pptx_stream,
@@ -424,7 +425,7 @@ async def update_powerpoint_endpoint(
         _append_server_audit_log(
             user["username"],
             "GERAR_PPTX",
-            f"Gerado arquivo '{report.output_filename}' ({len(custom_overrides)} ajustes aplicados, Total CNI: {report.total_company_headcount})."
+            f"Gerado arquivo '{report.output_filename}' ({len(custom_overrides)} ajustes aplicados, Total CNI: {report.total_company_headcount}).",
         )
 
         encoded_pptx = base64.b64encode(updated_pptx_bytes).decode("utf-8")
@@ -451,7 +452,7 @@ async def get_audit_logs_endpoint(request: Request):
         if TMP_AUDIT_LOG_PATH.exists():
             log_list = json.loads(TMP_AUDIT_LOG_PATH.read_text(encoding="utf-8"))
         return JSONResponse(content={"status": "success", "logs": log_list})
-    except Exception as exc:
+    except Exception:
         return JSONResponse(content={"status": "success", "logs": []})
 
 
@@ -462,18 +463,20 @@ async def export_audit_logs_txt(request: Request):
         log_list = []
         if TMP_AUDIT_LOG_PATH.exists():
             log_list = json.loads(TMP_AUDIT_LOG_PATH.read_text(encoding="utf-8"))
-        
+
         lines = ["===================================================================="]
         lines.append(" SISTEMA INDÚSTRIA · LOG DE AUDITORIA E EXTRAÇÃO DE SESSÃO")
         lines.append("====================================================================\n")
         for item in log_list:
-            lines.append(f"[{item.get('timestamp')}] ({item.get('username')}) {item.get('action')}: {item.get('details')}")
-        
+            lines.append(
+                f"[{item.get('timestamp')}] ({item.get('username')}) {item.get('action')}: {item.get('details')}"
+            )
+
         txt_content = "\n".join(lines)
         return PlainTextResponse(
             content=txt_content,
             media_type="text/plain;charset=utf-8",
-            headers={"Content-Disposition": "attachment; filename=Log_Auditoria_Sistema_Industria.txt"}
+            headers={"Content-Disposition": "attachment; filename=Log_Auditoria_Sistema_Industria.txt"},
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Erro ao exportar log: {str(exc)}")
