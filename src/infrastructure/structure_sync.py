@@ -5,7 +5,7 @@ Livre de qualquer nome de área, diretoria ou superintendência hardcoded:
 1. Isola o Slide 1 (Macroestrutura) para que jamais receba clonagem de unidades de slides de detalhe;
 2. Utiliza radicalização morfológica genérica da língua portuguesa (stemming) e afinidade posicional de colunas;
 3. Pareia caixas e colunas ordenando globalmente pelos pares de maior similaridade decrescente;
-4. Classifica níveis hierárquicos exclusivamente pela gramática do prefixo da unidade e pela geometria do slide.
+4. Rastreia o cursor vertical (bottom) de colunas recém-criadas para evitar sobreposição geométrica.
 """
 from __future__ import annotations
 
@@ -32,7 +32,6 @@ def _clean_text(sh: Any) -> str:
 
 
 def _stem_word(word: str) -> str:
-    """Radicalizador morfológico genérico (mantém a raiz de 5 caracteres para palavras >= 5 letras)."""
     return word[:5] if len(word) >= 5 else word
 
 
@@ -83,9 +82,6 @@ def _box_role_from_title_and_geom(title: str, top_emu: int, width_emu: int, slid
 
 
 class StructureSyncService:
-    """
-    Serviço autônomo de leitura geométrica do PPTX e pareamento inteligente com o Excel/Databricks.
-    """
 
     @classmethod
     def reconcile(
@@ -110,7 +106,7 @@ class StructureSyncService:
             discovered_dates.extend(slide_info["date_shapes"])
             discovered_company_totals.extend(slide_info["company_total_shapes"])
             discovered_segment_totals.extend(slide_info["segment_total_shapes"])
-            # Apenas slides de detalhe (s_idx > 0) entram no pipeline de reconciliação/clonagem de unidades
+            
             if s_idx > 0 and slide_info["segmento"]:
                 slide_segments[s_idx] = slide_info["segmento"]
                 raw_boxes_by_slide[s_idx] = slide_info["unit_boxes"]
@@ -148,8 +144,8 @@ class StructureSyncService:
 
         notes.insert(
             0,
-            f"Leitura Automática Concluída: {kept_total} unidades sincronizadas/atualizadas, "
-            f"{removed_total} caixas extintas removidas do slide e {cloned_total} novas unidades criadas.",
+            f"Leitura Automática Concluída: {kept_total} unidades sincronizadas, "
+            f"{removed_total} caixas extintas removidas e {cloned_total} novas unidades agendadas para clonagem.",
         )
 
         return {
@@ -178,7 +174,6 @@ class StructureSyncService:
         best_s, best_score = None, 0.0
         for s in seg_names:
             s_tokens = _core_tokens(s)
-            # Se o segmento tem apenas 1 token curto (ex: 'sesi', 'senai', 'iel'), verifica presença direta do token
             if len(s_tokens) == 1:
                 only_tok = next(iter(s_tokens))
                 if len(only_tok) <= 5 and only_tok in t_tokens:
@@ -203,7 +198,6 @@ class StructureSyncService:
         ungrouped_text_boxes: List[Tuple[str, int, int, int, int, str]] = []
         unmatched_macro_badges: List[str] = []
 
-        # 1. Identifica o segmento do slide pelo título superior APENAS nos slides de detalhe (slide_index > 0)
         if slide_index > 0:
             for sh in slide.shapes:
                 if not isinstance(sh, GroupShape) and getattr(sh, "has_text_frame", False):
@@ -213,7 +207,6 @@ class StructureSyncService:
                             slide_title_seg = cls._match_segment_name(txt, seg_names)
                             break
 
-        # 2. Varre todos os shapes do slide
         for sh in slide.shapes:
             sid = str(sh.shape_id)
             left = int(getattr(sh, "left", 0))
@@ -465,7 +458,7 @@ class StructureSyncService:
         used_records: Set[Tuple[str, str, str]] = set()
         used_boxes: Set[str] = set()
 
-        # PASSO 1: Pareamento Global Ordenado por Maior Similaridade Decrescente
+        # PASSO 1: Pareamento Global por Similaridade
         candidate_pairs: List[Tuple[float, int, Dict[str, Any], HeadcountRecord]] = []
         for idx_b, b in enumerate(valid_slide_boxes):
             b_role = b["role_code"]
@@ -512,7 +505,7 @@ class StructureSyncService:
             )
             kept_count += 1
 
-        # PASSO 2: Afinidade Posicional e de Contagem por Coluna de Superintendência
+        # PASSO 2: Afinidade Posicional na Coluna
         sup_headers = [b for b in valid_slide_boxes if b["role_code"] == "SUPERINTENDENCIA_TITULAR"]
         sup_headers.sort(key=lambda x: x["left"])
 
@@ -548,7 +541,6 @@ class StructureSyncService:
                 and classify_organizational_node(r.segmento_des, r.area_des, r.unidade_des)[0] == "GERENCIA_UNIDADE"
             ]
 
-            # Pareia priorizando correspondência exata de headcount na coluna ou ordem vertical
             for cb in list(unmatched_col_boxes):
                 if not unmatched_area_recs:
                     break
@@ -576,7 +568,7 @@ class StructureSyncService:
                 )
                 kept_count += 1
 
-        # PASSO 3: Caixas sem correspondência ativa na base -> Exclusão Física (`force_remove = True`)
+        # PASSO 3: Exclusão Física das Ausentes
         vacated_sup_slots: List[Dict[str, Any]] = []
         for b in valid_slide_boxes:
             b_key = f"{b['name_path']} | {b['badge_path']}"
@@ -600,7 +592,7 @@ class StructureSyncService:
             )
             removed_count += 1
 
-        # PASSO 4: Vinculação Geométrica dos Subtotais às Colunas Ativas
+        # PASSO 4: Vinculação Geométrica de Subtotais
         active_cols = [
             u for u in unit_boxes_out
             if not u.get("force_remove") and u.get("role_code") in ("SUPERINTENDENCIA_TITULAR", "DIRETORIA_VINCULADA")
@@ -636,11 +628,19 @@ class StructureSyncService:
                     }
                 )
 
-        # PASSO 5: Planejamento de Clonagem para Unidades Novas na Base
+        # PASSO 5: Clonagem Inteligente com Rastreio de Cursor Vertical
         unmatched_recs = [
             r for r in seg_records
             if (r.segmento_des, r.area_des, r.unidade_des) not in used_records
         ]
+        
+        # Ordena Superintendências antes das Gerências para garantir a criação da coluna primeiro
+        def _rank(rec):
+            return classify_organizational_node(rec.segmento_des, rec.area_des, rec.unidade_des)[1]
+        unmatched_recs.sort(key=lambda r: (_rank(r), r.unidade_des))
+
+        new_cols_cursor: Dict[str, Dict[str, int]] = {}
+
         for r in unmatched_recs:
             role_code, _ = classify_organizational_node(r.segmento_des, r.area_des, r.unidade_des)
 
@@ -661,8 +661,17 @@ class StructureSyncService:
                     top_ov = int(slot["top"])
                 elif sup_templates:
                     rightmost = max(sup_templates, key=lambda u: int(u["left"]))
-                    left_ov = int(rightmost["left"])
-                    top_ov = int(rightmost["top"]) + 2500000
+                    left_ov = int(rightmost["left"]) + 2500000
+                    top_ov = int(rightmost["top"])
+                else:
+                    left_ov = 500000
+                    top_ov = 2700000
+
+                # Define o cursor de inserção para as filhas desta nova Superintendência
+                new_cols_cursor[r.area_des] = {
+                    "left": left_ov,
+                    "bottom": top_ov + 721581 + 95000
+                }
 
                 cloned_boxes_out.append(
                     {
@@ -681,51 +690,85 @@ class StructureSyncService:
                 cloned_count += 1
                 continue
 
-            same_area_units = [
-                u for u in unit_boxes_out
-                if not u.get("force_remove")
-                and u["area"] == r.area_des
-                and "." in str(u["name_path"])
-            ]
-            ger_units = [u for u in same_area_units if u.get("role_code") == "GERENCIA_UNIDADE"]
-            if ger_units:
-                bottom_ger = max(ger_units, key=lambda u: int(u["top"]))
-                tpl_id = int(bottom_ger["name_path"].split(".")[0])
-                cloned_boxes_out.append(
-                    {
-                        "slide_index": slide_index,
-                        "template_group_id": tpl_id,
-                        "segmento": r.segmento_des,
-                        "area": r.area_des,
-                        "unidade": r.unidade_des,
-                        "display_name": r.unidade_des,
-                        "manager_placeholder": "(Definir Gestor)",
-                        "role_code": "GERENCIA_UNIDADE",
-                    }
-                )
-                cloned_count += 1
-            else:
-                all_gers = [
-                    u for u in unit_boxes_out
-                    if not u.get("force_remove")
-                    and u.get("role_code") == "GERENCIA_UNIDADE"
-                    and "." in str(u["name_path"])
-                ]
-                tpl_id = int(all_gers[-1]["name_path"].split(".")[0]) if all_gers else 34
-                cloned_boxes_out.append(
-                    {
-                        "slide_index": slide_index,
-                        "template_group_id": tpl_id,
-                        "left_override": 8200000 if slide_index == 4 else None,
-                        "top_override": 1850000 if slide_index == 4 else None,
-                        "segmento": r.segmento_des,
-                        "area": r.area_des,
-                        "unidade": r.unidade_des,
-                        "display_name": r.unidade_des,
-                        "manager_placeholder": "(Definir Gestor)",
-                        "role_code": "GERENCIA_UNIDADE",
-                    }
-                )
-                cloned_count += 1
+            if role_code == "GERENCIA_UNIDADE":
+                if r.area_des in new_cols_cursor:
+                    # A gerência pertence a uma Superintendência que acabou de nascer! Ocupa o cursor e avança-o.
+                    cursor = new_cols_cursor[r.area_des]
+                    ger_templates = [
+                        u for u in unit_boxes_out
+                        if not u.get("force_remove") and u.get("role_code") == "GERENCIA_UNIDADE" and "." in str(u["name_path"])
+                    ]
+                    tpl_id = int(ger_templates[0]["name_path"].split(".")[0]) if ger_templates else 34
+                    
+                    cloned_boxes_out.append(
+                        {
+                            "slide_index": slide_index,
+                            "template_group_id": tpl_id,
+                            "left_override": cursor["left"],
+                            "top_override": cursor["bottom"],
+                            "segmento": r.segmento_des,
+                            "area": r.area_des,
+                            "unidade": r.unidade_des,
+                            "display_name": r.unidade_des,
+                            "manager_placeholder": "(Definir Gestor)",
+                            "role_code": "GERENCIA_UNIDADE",
+                        }
+                    )
+                    cursor["bottom"] += 629312 + 95000
+                    cloned_count += 1
+                else:
+                    # A gerência pertence a uma coluna que já existe. Coloca-a por padrão no fundo.
+                    same_area_units = [
+                        u for u in unit_boxes_out
+                        if not u.get("force_remove") and u["area"] == r.area_des and "." in str(u["name_path"])
+                    ]
+                    ger_units = [u for u in same_area_units if u.get("role_code") == "GERENCIA_UNIDADE"]
+                    
+                    if ger_units:
+                        bottom_ger = max(ger_units, key=lambda u: int(u["top"]))
+                        tpl_id = int(bottom_ger["name_path"].split(".")[0])
+                        cloned_boxes_out.append(
+                            {
+                                "slide_index": slide_index,
+                                "template_group_id": tpl_id,
+                                "segmento": r.segmento_des,
+                                "area": r.area_des,
+                                "unidade": r.unidade_des,
+                                "display_name": r.unidade_des,
+                                "manager_placeholder": "(Definir Gestor)",
+                                "role_code": "GERENCIA_UNIDADE",
+                            }
+                        )
+                        cloned_count += 1
+                    else:
+                        sup_units = [u for u in same_area_units if u.get("role_code") == "SUPERINTENDENCIA_TITULAR"]
+                        all_gers = [
+                            u for u in unit_boxes_out
+                            if not u.get("force_remove") and u.get("role_code") == "GERENCIA_UNIDADE" and "." in str(u["name_path"])
+                        ]
+                        tpl_id = int(all_gers[-1]["name_path"].split(".")[0]) if all_gers else 34
+                        
+                        left_ov, top_ov = None, None
+                        if sup_units:
+                            left_ov = int(sup_units[0]["left"])
+                            top_ov = int(sup_units[0]["top"]) + 721581 + 95000
+                        elif slide_index == 4:
+                            left_ov, top_ov = 8200000, 1850000
+                            
+                        cloned_boxes_out.append(
+                            {
+                                "slide_index": slide_index,
+                                "template_group_id": tpl_id,
+                                "left_override": left_ov,
+                                "top_override": top_ov,
+                                "segmento": r.segmento_des,
+                                "area": r.area_des,
+                                "unidade": r.unidade_des,
+                                "display_name": r.unidade_des,
+                                "manager_placeholder": "(Definir Gestor)",
+                                "role_code": "GERENCIA_UNIDADE",
+                            }
+                        )
+                        cloned_count += 1
 
         return unit_boxes_out, cloned_boxes_out, subtotals_out, notes, kept_count, removed_count, cloned_count

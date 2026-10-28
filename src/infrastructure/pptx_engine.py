@@ -118,82 +118,85 @@ class PptxSurgicalEngine:
 
     @staticmethod
     def update_area_name_preserving_manager(
-        shape: Optional[BaseShape],
-        new_area_name: str,
-        new_manager_override: Optional[str] = None,
-    ) -> tuple[str, str]:
-        if shape is None or not getattr(shape, "has_text_frame", False):
-            return "", new_area_name
+            shape: Optional[BaseShape],
+            new_area_name: str,
+            new_manager_override: Optional[str] = None,
+        ) -> tuple[str, str]:
+            if shape is None or not getattr(shape, "has_text_frame", False):
+                return "", new_area_name
 
-        full_old = " ".join(shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
-        if not shape.text_frame.paragraphs:
-            return full_old, new_area_name
+            full_old = " ".join(shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
+            if not shape.text_frame.paragraphs:
+                return full_old, new_area_name
 
-        p0 = shape.text_frame.paragraphs[0]
-        p_el = p0._p
-        children = list(p_el)
-        r_elements = [el for el in children if el.tag == qn("a:r")]
-
-        mgr_r_el = None
-        for r_el in r_elements:
-            t_el = r_el.find(qn("a:t"))
-            if t_el is not None and t_el.text and "(" in t_el.text:
-                mgr_r_el = r_el
-                break
-
-        if mgr_r_el is not None and r_elements and r_elements[0] != mgr_r_el:
-            first_r = r_elements[0]
-            t_first = first_r.find(qn("a:t"))
-            if t_first is not None:
-                t_first.text = new_area_name
-
-            idx_first = children.index(first_r)
-            idx_mgr = children.index(mgr_r_el)
-            between = children[idx_first + 1 : idx_mgr]
-            br_between = [el for el in between if el.tag == qn("a:br")]
-            keep_br = br_between[-1] if br_between else None
-
-            for el in between:
-                if el is not keep_br:
-                    p_el.remove(el)
-
-            if new_manager_override is not None:
-                mgr_formatted = new_manager_override.strip()
-                if mgr_formatted and not mgr_formatted.startswith("("):
-                    mgr_formatted = f"({mgr_formatted})"
-                t_mgr = mgr_r_el.find(qn("a:t"))
-                if t_mgr is not None:
-                    t_mgr.text = mgr_formatted
-                for extra_r in r_elements[r_elements.index(mgr_r_el) + 1 :]:
-                    t_ex = extra_r.find(qn("a:t"))
-                    if t_ex is not None:
-                        t_ex.text = ""
-
-        elif mgr_r_el is not None and r_elements and r_elements[0] == mgr_r_el:
-            t_el = mgr_r_el.find(qn("a:t"))
-            if t_el is not None and t_el.text:
-                ppos = t_el.text.find("(")
-                mgr_txt = new_manager_override if new_manager_override is not None else t_el.text[ppos:]
-                if mgr_txt and not mgr_txt.startswith("("):
-                    mgr_txt = f"({mgr_txt})"
-                t_el.text = f"{new_area_name} {mgr_txt}".strip()
-        else:
+            p0 = shape.text_frame.paragraphs[0]
+            p_el = p0._p
+            
+            r_elements = [el for el in p_el if el.tag == qn("a:r")]
+            rPr_area_xml = None
+            rPr_mgr_xml = None
+            
+            mgr_r_el = None
+            for r_el in r_elements:
+                t_el = r_el.find(qn("a:t"))
+                if t_el is not None and t_el.text and "(" in t_el.text:
+                    mgr_r_el = r_el
+                    break
+                    
             if r_elements:
-                t_first = r_elements[0].find(qn("a:t"))
-                if t_first is not None:
-                    if new_manager_override:
-                        mgr_txt = new_manager_override.strip()
-                        if not mgr_txt.startswith("("):
-                            mgr_txt = f"({mgr_txt})"
-                        t_first.text = f"{new_area_name} {mgr_txt}"
-                    else:
-                        t_first.text = new_area_name
-                for extra_el in children[children.index(r_elements[0]) + 1 :]:
-                    if extra_el.tag in (qn("a:r"), qn("a:br")):
-                        p_el.remove(extra_el)
+                first_rPr = r_elements[0].find(qn("a:rPr"))
+                if first_rPr is not None:
+                    rPr_area_xml = copy.deepcopy(first_rPr)
+                    
+            if mgr_r_el is not None:
+                mgr_rPr = mgr_r_el.find(qn("a:rPr"))
+                if mgr_rPr is not None:
+                    rPr_mgr_xml = copy.deepcopy(mgr_rPr)
+                    
+            # Se não existia gestor, deriva um estilo menor e em itálico a partir do estilo da área
+            if rPr_mgr_xml is None and rPr_area_xml is not None:
+                rPr_mgr_xml = copy.deepcopy(rPr_area_xml)
+                rPr_mgr_xml.set("i", "1")
+                rPr_mgr_xml.set("b", "0")
+                sz = rPr_mgr_xml.get("sz")
+                if sz and sz.isdigit():
+                    rPr_mgr_xml.set("sz", str(int(int(sz) * 0.85)))
+                    
+            # Limpa todos os nós do parágrafo EXCETO as propriedades do parágrafo (<a:pPr>)
+            for child in list(p_el):
+                if child.tag != qn("a:pPr"):
+                    p_el.remove(child)
+                    
+            # Constrói o texto do Nome da Área
+            r_area = etree.SubElement(p_el, qn("a:r"))
+            if rPr_area_xml is not None:
+                r_area.append(rPr_area_xml)
+            t_area = etree.SubElement(r_area, qn("a:t"))
+            t_area.text = new_area_name
+            
+            # Define o nome final do gestor
+            final_mgr = None
+            if new_manager_override:
+                final_mgr = new_manager_override.strip()
+            elif mgr_r_el is not None:
+                t_el = mgr_r_el.find(qn("a:t"))
+                if t_el is not None and t_el.text:
+                    ppos = t_el.text.find("(")
+                    final_mgr = t_el.text[ppos:].strip()
+                    
+            # Constrói o texto do Gestor (com quebra de linha forçada <a:br>)
+            if final_mgr:
+                if not final_mgr.startswith("("):
+                    final_mgr = f"({final_mgr})"
+                etree.SubElement(p_el, qn("a:br"))
+                r_mgr = etree.SubElement(p_el, qn("a:r"))
+                if rPr_mgr_xml is not None:
+                    r_mgr.append(rPr_mgr_xml)
+                t_mgr = etree.SubElement(r_mgr, qn("a:t"))
+                t_mgr.text = final_mgr
 
-        full_new = " ".join(shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
-        return full_old, full_new
+            full_new = " ".join(shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
+            return full_old, full_new
 
     @staticmethod
     def apply_dashed_border_xml(

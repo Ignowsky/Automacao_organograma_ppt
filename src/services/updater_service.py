@@ -12,11 +12,7 @@ from src.domain.models import (
     TargetType,
     OrganizationalRole,
 )
-from src.infrastructure.pptx_engine import (
-    PptxSurgicalEngine,
-    classify_organizational_node,
-    normalize_text_key,
-)
+from src.infrastructure.pptx_engine import PptxSurgicalEngine, classify_organizational_node, normalize_text_key
 from src.infrastructure.databricks_repository import parse_reference_date_info
 from src.infrastructure.structure_sync import StructureSyncService
 
@@ -106,7 +102,10 @@ class PresentationUpdaterService:
             )
             unit_totals[(r.segmento_des, r.area_des, r.unidade_des)] = r.headcount
 
-        # Sincronização dinâmica em memória (100% independente de slide_mapping.json)
+        base_total_company = total_company
+        base_seg_totals = dict(seg_totals)
+        base_area_totals = dict(area_totals)
+
         self.config = StructureSyncService.reconcile(prs, records, self.base_config)
         sync_notes: List[str] = list(self.config.pop("_sync_notes", []))
 
@@ -145,6 +144,8 @@ class PresentationUpdaterService:
 
         unit_overrides_by_key: Dict[tuple[int, str], Dict[str, Any]] = {}
         removed_unit_keys: Dict[tuple[int, str], Dict[str, Any]] = {}
+        direct_shape_overrides: Dict[tuple[int, str], Dict[str, Any]] = {}
+        unmapped_overrides: List[Dict[str, Any]] = []
         custom_added_boxes: List[Dict[str, Any]] = []
 
         cascaded_area_deltas: Dict[tuple[str, str], int] = {}
@@ -258,7 +259,6 @@ class PresentationUpdaterService:
         regular_entries: List[ChangeLogEntry] = []
         date_entries: List[ChangeLogEntry] = []
 
-        # 1. Datas Base
         for d in self.config.get("date_shapes", []):
             sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[d["slide_index"]], d["shape_path"])
             if sh:
@@ -277,7 +277,6 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 2. Total Geral CNI
         for c in self.config.get("company_total_shapes", []):
             sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[c["slide_index"]], c["shape_path"])
             if sh:
@@ -296,7 +295,6 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 3. Totais de Diretoria
         for s in self.config.get("segment_total_shapes", []):
             s_idx = int(s["slide_index"])
             s_path = str(s["shape_path"]).strip()
@@ -318,7 +316,6 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 4. Subtotais de Superintendência
         for a in self.config.get("area_subtotal_shapes", []):
             s_idx = int(a["slide_index"])
             a_path = str(a["shape_path"]).strip()
@@ -337,7 +334,7 @@ class PresentationUpdaterService:
                         f"Subtotal [{old_sub}]",
                         f"(Removido: área sem registros em {reference_label}) [0]",
                         UpdateStatus.REMOVED_BOX,
-                        f"Área extinta: selo de subtotal removido · {seg_name} › {area_name}",
+                        f"🗑️ Área extinta: selo de subtotal removido · {seg_name} › {area_name}",
                     )
                 )
                 continue
@@ -358,7 +355,6 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 5. Unidades Existentes (Exclusão das extintas + Borda Tracejada APENAS nas renomeadas/editadas)
         for u in self.config.get("unit_boxes", []):
             s_idx = int(u["slide_index"])
             sl = prs.slides[s_idx]
@@ -381,7 +377,7 @@ class PresentationUpdaterService:
                         f"{old_txt} [Presente na Base Anterior]",
                         f"(Removido do Slide: sem registro em {reference_label}) [0]",
                         UpdateStatus.REMOVED_BOX,
-                        f"Caixa sem registro na base ({reference_label}) removida do slide e coluna compactada · {u['segmento']} › {u['area']}",
+                        f"🗑️ Caixa sem registro na base ({reference_label}) removida do slide e coluna compactada · {u['segmento']} › {u['area']}",
                     )
                 )
                 continue
@@ -395,7 +391,7 @@ class PresentationUpdaterService:
             val = unit_totals.get((u["segmento"], u["area"], u["unidade"]), 0)
             old_num, new_num = PptxSurgicalEngine.update_numeric_badge(badge_sh, val)
             old_area_only, _ = PptxSurgicalEngine.split_area_and_manager(name_sh)
-            old_name = " ".join(name_sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
+            old_name = name_sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
             new_name = old_name
 
             top_grp_id = str(u["name_path"]).split(".")[0].strip()
@@ -418,7 +414,7 @@ class PresentationUpdaterService:
                         f"{old_name} [{old_num}]",
                         f"{new_name} [{new_num}]",
                         UpdateStatus.UPDATED_NAME_AND_NUMBER,
-                        f"Editado manualmente · {u['segmento']} › {u['area']}",
+                        f"✏️ Editado manualmente · {u['segmento']} › {u['area']}",
                     )
                 )
             else:
@@ -447,8 +443,17 @@ class PresentationUpdaterService:
                     )
                 )
 
-        # 6. Novas Caixas Clonadas da Base (Sempre recebem borda tracejada e entram no Preview 16:9)
+        # Filtra clonagens automáticas de caixas que o utilizador já adicionou explicitamente via formulário Web
+        manual_add_names = {
+            normalize_text_key(ov.get("new_area_name", ""))
+            for ov in (custom_overrides or []) if ov.get("action") == "ADD"
+        }
+
+        # 6A. Novas Caixas Clonadas Automáticas da Base
         for cl in self.config.get("cloned_new_boxes", []):
+            if normalize_text_key(cl["display_name"]) in manual_add_names:
+                continue
+
             s_idx = int(cl["slide_index"])
             sl = prs.slides[s_idx]
             val = unit_totals.get((cl["segmento"], cl["area"], cl["unidade"]), 0)
@@ -486,7 +491,7 @@ class PresentationUpdaterService:
             _grp = cloned_info.get("container_shape")
             if _grp is not None and int(_grp.top) + int(_grp.height) > _slide_h:
                 sync_notes.append(
-                    f"Slide {s_idx + 1}: a nova caixa \"{cl['display_name']}\" ultrapassa a borda inferior do slide; reorganize a coluna."
+                    f"⚠ Slide {s_idx + 1}: a nova caixa \"{cl['display_name']}\" ultrapassa a borda inferior do slide; reorganize a coluna."
                 )
 
             regular_entries.append(
@@ -502,7 +507,7 @@ class PresentationUpdaterService:
                 )
             )
 
-        # 6B. Novas Caixas Criadas Manualmente pelo Utilizador na Web (action == 'ADD')
+        # 6B. Novas Caixas Adicionadas Manualmente pelo Utilizador no Estúdio Web
         for add_req in custom_added_boxes:
             s_idx = int(add_req["slide_index"])
             sl = prs.slides[s_idx]
@@ -539,13 +544,17 @@ class PresentationUpdaterService:
                         "(Nova Caixa Adicionada na Web)",
                         f"{add_req['new_area_name']} {add_req['new_manager']} [{add_req['new_headcount']}]",
                         UpdateStatus.CLONED_NEW_BOX,
-                        f"Nova caixa tracejada criada pelo utilizador · {add_req['segmento']} › {add_req['area']}",
+                        f"➕ Nova caixa tracejada criada pelo utilizador · {add_req['segmento']} › {add_req['area']}",
                     )
                 )
             except Exception:
                 pass
 
         report.changes = manual_entries + cascade_entries + regular_entries + date_entries
+
+        # EXTRAÇÃO DO PREVIEW 16:9 ANTES DO SAVE PARA PREVENIR RE-ATRIBUIÇÃO DE IDS!
+        report.slides_preview = PptxSurgicalEngine.extract_slides_preview(prs, self.config)
+        report.validation_notes.extend(sync_notes)
 
         output_buffer = io.BytesIO()
         prs.save(output_buffer)
@@ -559,7 +568,5 @@ class PresentationUpdaterService:
         report.conflict_count = sum(
             1 for c in report.changes if c.status == UpdateStatus.EXTINCT_IN_DATABRICKS
         )
-        report.validation_notes.extend(sync_notes)
-        report.slides_preview = PptxSurgicalEngine.extract_slides_preview(prs_val, self.config)
 
         return pptx_bytes, report
