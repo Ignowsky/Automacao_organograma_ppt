@@ -1,48 +1,14 @@
 from typing import List, Dict, Any, Optional
 from src.domain.models import HeadcountRecord, OrganizationalRole
-from src.infrastructure.pptx_engine import normalize_text_key
 
 
 class PeopleAnalyticsService:
     """
-    Serviço 100% Dinâmico de Inteligência Organizacional para o Mapa de Headcount:
-    - Não depende de config/slide_mapping.json;
-    - Associa automaticamente cada Diretoria/Entidade ao seu respectivo número de slide (1 a 11);
-    - Classifica papéis hierárquicos pela Gramática Universal de 5 Níveis.
+    Serviço 100% dinâmico de inteligência organizacional:
+    - Não depende de slide_mapping.json nem de nomes de áreas fixos no código;
+    - Determina se um agrupamento (AREA_DES) é Superintendência ou Staff Direto/Diretoria
+      verificando dinamicamente se existe titular de Superintendência dentro do agrupamento.
     """
-
-    @staticmethod
-    def _infer_slide_number(segmento: str) -> int:
-        s_norm = normalize_text_key(segmento)
-        if "governanca" in s_norm:
-            return 2
-        if "juridica" in s_norm:
-            return 3
-        if "relacoes institucionais" in s_norm:
-            return 4
-        if "desenvolvimento industrial" in s_norm:
-            return 5
-        if "comunicacao" in s_norm:
-            return 6
-        if "corporativa" in s_norm:
-            return 7
-        if s_norm == "sesi" or "sesi" in s_norm:
-            return 8
-        if s_norm == "senai" or "senai" in s_norm:
-            return 9
-        if s_norm == "iel" or "iel" in s_norm:
-            return 10
-        if "compliance" in s_norm:
-            return 11
-        return 1
-
-    @staticmethod
-    def _normalize_segmento(segmento: str, unidade: str) -> str:
-        seg_clean = str(segmento or "").strip()
-        uni_clean = str(unidade or "").strip()
-        if "Compliance" in seg_clean or "Compliance" in uni_clean:
-            return "Diretoria de Compliance e Integridade"
-        return seg_clean
 
     @classmethod
     def build_organization_summary(
@@ -52,11 +18,11 @@ class PeopleAnalyticsService:
         area_filter: Optional[str] = None,
         search_term: Optional[str] = None,
     ) -> Dict[str, Any]:
-        normalized_records = [
+        active_records = [
             HeadcountRecord(
-                segmento_des=cls._normalize_segmento(r.segmento_des, r.unidade_des),
-                area_des=r.area_des,
-                unidade_des=r.unidade_des,
+                segmento_des=str(r.segmento_des or "").strip(),
+                area_des=str(r.area_des or "").strip(),
+                unidade_des=str(r.unidade_des or "").strip(),
                 headcount=r.headcount,
                 ano_mes_referencia=r.ano_mes_referencia,
             )
@@ -64,12 +30,18 @@ class PeopleAnalyticsService:
             if r.headcount > 0
         ]
 
-        filtered = normalized_records
+        # Identifica dinamicamente quais (segmento, area) possuem um titular de Superintendência
+        areas_with_superintendencia = {
+            (r.segmento_des, r.area_des)
+            for r in active_records
+            if r.organizational_role == OrganizationalRole.SUPERINTENDENCIA_TITULAR
+        }
+
+        filtered = active_records
         if segmento_filter and segmento_filter != "TODOS":
-            norm_seg_filter = cls._normalize_segmento(segmento_filter, "")
-            filtered = [r for r in filtered if r.segmento_des == norm_seg_filter]
+            filtered = [r for r in filtered if r.segmento_des == segmento_filter.strip()]
         if area_filter and area_filter != "TODAS":
-            filtered = [r for r in filtered if r.area_des == area_filter]
+            filtered = [r for r in filtered if r.area_des == area_filter.strip()]
         if search_term:
             term = search_term.lower().strip()
             filtered = [
@@ -84,13 +56,13 @@ class PeopleAnalyticsService:
 
         for r in filtered:
             role = r.organizational_role.value
-            slide_num = cls._infer_slide_number(r.segmento_des)
             seg = by_segment.setdefault(
-                r.segmento_des, {"total": 0, "slide_number": slide_num, "areas": {}}
+                r.segmento_des, {"total": 0, "slide_number": 1, "areas": {}}
             )
             seg["total"] += r.headcount
 
-            is_staff = r.is_direct_staff_or_board
+            # Uma área é Staff Direto / Diretoria se NÃO for encabeçada por uma Superintendência Titular
+            is_staff = (r.segmento_des, r.area_des) not in areas_with_superintendencia
 
             area = seg["areas"].setdefault(
                 r.area_des,
@@ -109,7 +81,7 @@ class PeopleAnalyticsService:
                     "role": role,
                     "manager": "",
                     "shape_key": "",
-                    "slide_number": slide_num,
+                    "slide_number": 1,
                 }
             )
 
@@ -142,12 +114,12 @@ class PeopleAnalyticsService:
         return {
             "total_headcount": total_headcount,
             "total_unidades": len(filtered),
-            "available_segments": sorted({r.segmento_des for r in normalized_records}),
+            "available_segments": sorted({r.segmento_des for r in active_records}),
             "available_areas": sorted(
                 {
                     r.area_des
-                    for r in normalized_records
-                    if not segmento_filter or segmento_filter == "TODOS" or r.segmento_des == cls._normalize_segmento(segmento_filter, "")
+                    for r in active_records
+                    if not segmento_filter or segmento_filter == "TODOS" or r.segmento_des == segmento_filter.strip()
                 }
             ),
             "hierarchy": sorted_segments,

@@ -22,25 +22,32 @@ def normalize_text_key(text: str) -> str:
 
 
 def classify_organizational_node(segmento: str, area: str, unidade: str) -> Tuple[str, int]:
+    """
+    Classificador gramatical puro de 5 níveis (zero nomes de áreas hardcoded):
+    - Rank 0: CONSELHO_SUPERIOR
+    - Rank 1: DIRETORIA_CABECA
+    - Rank 2: DIRETORIA_VINCULADA
+    - Rank 3: SUPERINTENDENCIA_TITULAR
+    - Rank 4: GERENCIA_UNIDADE
+    """
     s_norm = normalize_text_key(segmento)
-    a_norm = normalize_text_key(area)
     u_norm = normalize_text_key(unidade)
 
-    if u_norm.startswith("conselho") or u_norm.startswith("presidencia"):
+    if u_norm.startswith(("conselho", "presidencia")):
         return ("CONSELHO_SUPERIOR", 0)
 
     if (
         "diretoria geral" in u_norm
         or "superintendencia geral" in u_norm
-        or u_norm == s_norm
-        or (s_norm == "iel" and u_norm.startswith("superintendencia"))
+        or (s_norm and u_norm == s_norm)
+        or (s_norm and u_norm.startswith(("diretoria", "superintend")) and s_norm in u_norm)
     ):
         return ("DIRETORIA_CABECA", 1)
 
     if u_norm.startswith("diretoria"):
         return ("DIRETORIA_VINCULADA", 2)
 
-    if u_norm.startswith("superintend") or "negocios institucionais" in a_norm:
+    if u_norm.startswith("superintend"):
         return ("SUPERINTENDENCIA_TITULAR", 3)
 
     return ("GERENCIA_UNIDADE", 4)
@@ -81,7 +88,7 @@ class PptxSurgicalEngine:
     def split_area_and_manager(shape: Optional[BaseShape]) -> tuple[str, str]:
         if shape is None or not getattr(shape, "has_text_frame", False):
             return "", ""
-        raw = shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
+        raw = " ".join(shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
         if "(" in raw:
             idx = raw.find("(")
             return raw[:idx].strip(), raw[idx:].strip()
@@ -118,7 +125,7 @@ class PptxSurgicalEngine:
         if shape is None or not getattr(shape, "has_text_frame", False):
             return "", new_area_name
 
-        full_old = shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
+        full_old = " ".join(shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
         if not shape.text_frame.paragraphs:
             return full_old, new_area_name
 
@@ -185,7 +192,7 @@ class PptxSurgicalEngine:
                     if extra_el.tag in (qn("a:r"), qn("a:br")):
                         p_el.remove(extra_el)
 
-        full_new = shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
+        full_new = " ".join(shape.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
         return full_old, full_new
 
     @staticmethod
@@ -408,7 +415,7 @@ class PptxSurgicalEngine:
             name_sh = cls.find_shape_by_path(slide, name_p)
             badge_sh = cls.find_shape_by_path(slide, badge_p)
             if name_sh and getattr(name_sh, "has_text_frame", False):
-                old_text = name_sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
+                old_text = " ".join(name_sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
             if badge_sh and getattr(badge_sh, "has_text_frame", False):
                 try:
                     old_hc = int(float(badge_sh.text_frame.text.strip()))
@@ -455,7 +462,6 @@ class PptxSurgicalEngine:
             if badge_node is not None and badge_node.element.getparent() is not None:
                 badge_node.element.getparent().remove(badge_node.element)
 
-        # Remove também linhas conectoras órfãs se não restou nenhuma caixa nessa coluna abaixo de removed_top
         remaining_in_col = [
             sh for sh in slide.shapes
             if isinstance(sh, GroupShape)
@@ -607,7 +613,52 @@ class PptxSurgicalEngine:
                 max_b = max(g1["top"] + g1["height"], g2["top"] + g2["height"])
                 return _to_pct(min_l, min_t, max_r - min_l, max_b - min_t)
 
-            # 1. Unidades ativas (incluindo as recém-clonadas registradas no mapping_config)
+            # 0. Tratamento Unificado para Grupos no Slide 1 (Macroestrutura)
+            if s_idx == 0:
+                for sh in slide.shapes:
+                    sid = str(sh.shape_id)
+                    if isinstance(sh, GroupShape):
+                        kids = [
+                            (f"{sid}.{c.shape_id}", " ".join(c.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split()))
+                            for c in sh.shapes
+                            if getattr(c, "has_text_frame", False) and c.text_frame.text.strip()
+                        ]
+                        nums = [k for k in kids if k[1].replace(".", "").isdigit()]
+                        names = [k for k in kids if not k[1].replace(".", "").isdigit()]
+
+                        if names and nums:
+                            name_p, name_txt = max(names, key=lambda item: len(item[1]))
+                            badge_p, badge_txt = nums[0]
+
+                            _mark_consumed(sid)
+                            _mark_consumed(name_p)
+                            _mark_consumed(badge_p)
+
+                            area_txt, mgr_txt = cls.split_area_and_manager(
+                                cls.find_shape_by_path(slide, name_p)
+                            )
+                            box_pct = _to_pct(float(sh.left), float(sh.top), float(sh.width), float(sh.height))
+
+                            elements.append(
+                                {
+                                    "kind": "UNIT_BOX",
+                                    "shape_key": f"{name_p} | {badge_p}",
+                                    "group_id": sid,
+                                    "segmento": area_txt or name_txt,
+                                    "superintendencia": "",
+                                    "area_name": area_txt or name_txt,
+                                    "manager": mgr_txt,
+                                    "badge": badge_txt,
+                                    "is_head": True,
+                                    "is_extinct": False,
+                                    "is_cloned": False,
+                                    "is_new": False,
+                                    "is_modified": False,
+                                    **box_pct,
+                                }
+                            )
+
+            # 1. Unidades ativas (Slides 2 a 11)
             all_unit_rules = [
                 u for u in cfg.get("unit_boxes", [])
                 if int(u["slide_index"]) == s_idx and not u.get("force_remove")
@@ -616,6 +667,8 @@ class PptxSurgicalEngine:
             for u in all_unit_rules:
                 np_str = str(u["name_path"]).strip()
                 bp_str = str(u["badge_path"]).strip()
+                if np_str in consumed_paths:
+                    continue
                 g_name = geom_map.get(np_str)
                 g_badge = geom_map.get(bp_str)
                 if not g_name or not g_badge:
@@ -657,6 +710,7 @@ class PptxSurgicalEngine:
                         "is_extinct": False,
                         "is_cloned": bool(u.get("is_cloned", False)),
                         "is_new": bool(u.get("is_new", False)),
+                        "is_modified": bool(u.get("is_modified", False)),
                         **box_pct,
                     }
                 )
@@ -666,6 +720,8 @@ class PptxSurgicalEngine:
                 if int(a["slide_index"]) != s_idx or a.get("area") == "__EXTINCT_AREA__":
                     continue
                 sp = str(a["shape_path"]).strip()
+                if sp in consumed_paths:
+                    continue
                 g = geom_map.get(sp)
                 if not g or not getattr(g["shape"], "has_text_frame", False):
                     continue
@@ -696,6 +752,8 @@ class PptxSurgicalEngine:
             ]
             for t_rule in tot_rules:
                 sp = str(t_rule["shape_path"]).strip()
+                if sp in consumed_paths:
+                    continue
                 g = geom_map.get(sp)
                 if not g or not getattr(g["shape"], "has_text_frame", False):
                     continue
@@ -718,6 +776,8 @@ class PptxSurgicalEngine:
                 if int(d["slide_index"]) != s_idx:
                     continue
                 sp = str(d["shape_path"]).strip()
+                if sp in consumed_paths:
+                    continue
                 g = geom_map.get(sp)
                 if not g or not getattr(g["shape"], "has_text_frame", False):
                     continue
@@ -733,14 +793,14 @@ class PptxSurgicalEngine:
                     }
                 )
 
-            # 5. Apenas Títulos de Slide, Rodapés e Caixas Macro do Slide 1 (NUNCA renderiza órfãs como INSTITUTIONAL_BOX nos slides 2 a 11)
+            # 5. Títulos de Slide, Rodapés e Caixas Institucionais sem Crachá
             for path, g in geom_map.items():
                 if path in consumed_paths or g["is_group"]:
                     continue
                 sh = g["shape"]
                 if not getattr(sh, "has_text_frame", False):
                     continue
-                txt = sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ")
+                txt = " ".join(sh.text_frame.text.strip().replace("\x0b", " ").replace("\n", " ").split())
                 if not txt or (len(txt) <= 1 and not txt.isdigit()):
                     continue
                 pct = _to_pct(g["left"], g["top"], g["width"], g["height"])
@@ -765,7 +825,7 @@ class PptxSurgicalEngine:
                             **pct,
                         }
                     )
-                elif s_idx == 0 or normalize_text_key(txt).startswith(("diretoria da cni", "conselho de representantes", "presidencia", "iniciativa mei")):
+                elif s_idx == 0 or float(g["top"]) < 2400000:
                     area_part, mgr_part = cls.split_area_and_manager(sh)
                     elements.append(
                         {
@@ -774,6 +834,8 @@ class PptxSurgicalEngine:
                             "area_name": area_part or txt,
                             "manager": mgr_part,
                             "text": txt,
+                            "is_cloned": False,
+                            "is_modified": False,
                             **pct,
                         }
                     )

@@ -49,25 +49,33 @@ class HeadcountRecord:
 
     @property
     def organizational_role(self) -> OrganizationalRole:
+        """
+        Classificação 100% gramatical e estrutural (sem nomes de áreas fixos):
+        - CONSELHO_SUPERIOR (Rank 0): Unidades iniciadas por Conselho ou Presidência.
+        - DIRETORIA_CABECA (Rank 1): Gabinete titular do próprio Segmento/Entidade
+          (Diretoria Geral, Superintendência Geral, ou unidade cujo nome coincide/contém o Segmento).
+        - DIRETORIA_VINCULADA (Rank 2): Diretorias subordinadas dentro de uma Entidade.
+        - SUPERINTENDENCIA_TITULAR (Rank 3): Unidades iniciadas por Superintendência.
+        - GERENCIA_UNIDADE (Rank 4): Gerências, Ouvidorias, Logística e demais unidades operacionais.
+        """
         s_norm = _normalize_str(self.segmento_des)
-        a_norm = _normalize_str(self.area_des)
         u_norm = _normalize_str(self.unidade_des)
 
-        if u_norm.startswith("conselho") or u_norm.startswith("presidencia"):
+        if u_norm.startswith(("conselho", "presidencia")):
             return OrganizationalRole.CONSELHO_SUPERIOR
 
         if (
             "diretoria geral" in u_norm
             or "superintendencia geral" in u_norm
-            or u_norm == s_norm
-            or (u_norm.startswith("diretoria") and a_norm == s_norm)
+            or (s_norm and u_norm == s_norm)
+            or (s_norm and u_norm.startswith(("diretoria", "superintend")) and s_norm in u_norm)
         ):
             return OrganizationalRole.DIRETORIA_CABECA
 
-        if u_norm.startswith("diretoria") or a_norm.startswith("diretoria"):
+        if u_norm.startswith("diretoria"):
             return OrganizationalRole.DIRETORIA_VINCULADA
 
-        if u_norm.startswith("superintend") or "negocios institucionais" in a_norm:
+        if u_norm.startswith("superintend"):
             return OrganizationalRole.SUPERINTENDENCIA_TITULAR
 
         return OrganizationalRole.GERENCIA_UNIDADE
@@ -85,14 +93,19 @@ class HeadcountRecord:
 
     @property
     def is_direct_staff_or_board(self) -> bool:
+        """
+        Identifica dinamicamente se o registro pertence ao topo diretivo/staff direto
+        (sem listas fixas de áreas).
+        """
+        s_norm = _normalize_str(self.segmento_des)
+        a_norm = _normalize_str(self.area_des)
         return (
-            self.area_des == self.segmento_des
+            a_norm == s_norm
             or self.organizational_role in (
                 OrganizationalRole.CONSELHO_SUPERIOR,
                 OrganizationalRole.DIRETORIA_CABECA,
                 OrganizationalRole.DIRETORIA_VINCULADA,
             )
-            or _normalize_str(self.area_des) in ("cni/sp", "diretoria geral", "conselho nacional senai", "negocios institucionais")
         )
 
 
