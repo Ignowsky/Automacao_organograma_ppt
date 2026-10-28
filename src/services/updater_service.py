@@ -144,8 +144,6 @@ class PresentationUpdaterService:
 
         unit_overrides_by_key: Dict[tuple[int, str], Dict[str, Any]] = {}
         removed_unit_keys: Dict[tuple[int, str], Dict[str, Any]] = {}
-        direct_shape_overrides: Dict[tuple[int, str], Dict[str, Any]] = {}
-        unmapped_overrides: List[Dict[str, Any]] = []
         custom_added_boxes: List[Dict[str, Any]] = []
 
         cascaded_area_deltas: Dict[tuple[str, str], int] = {}
@@ -208,7 +206,11 @@ class PresentationUpdaterService:
                         inf_seg, inf_area = self._infer_segment_and_area_by_column(
                             prs.slides[s_idx], s_idx, shape_key
                         )
-                    _apply_cascade_delta(inf_seg, inf_area, add_hc)
+                    
+                    final_seg = str(ov.get("segmento") or inf_seg or "").strip()
+                    final_area = str(ov.get("area") or inf_area or "").strip()
+                    
+                    _apply_cascade_delta(final_seg, final_area, add_hc)
                     custom_added_boxes.append(
                         {
                             "slide_index": s_idx,
@@ -216,8 +218,8 @@ class PresentationUpdaterService:
                             "new_area_name": (ov.get("new_area_name") or "Nova Unidade").strip(),
                             "new_manager": (ov.get("new_manager") or "(Definir Gestor)").strip(),
                             "new_headcount": add_hc,
-                            "segmento": inf_seg or "",
-                            "area": inf_area or "",
+                            "segmento": final_seg,
+                            "area": final_area,
                         }
                     )
                     continue
@@ -264,36 +266,14 @@ class PresentationUpdaterService:
             if sh:
                 old_v, new_v = PptxSurgicalEngine.update_numeric_badge(sh, reference_label)
                 st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
-                date_entries.append(
-                    ChangeLogEntry(
-                        d["slide_index"] + 1,
-                        str(d["shape_path"]),
-                        "Tag de Competência",
-                        TargetType.REFERENCE_DATE,
-                        old_v,
-                        new_v,
-                        st,
-                        "Tag de competência",
-                    )
-                )
+                date_entries.append(ChangeLogEntry(d["slide_index"] + 1, str(d["shape_path"]), "Tag de Competência", TargetType.REFERENCE_DATE, old_v, new_v, st))
 
         for c in self.config.get("company_total_shapes", []):
             sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[c["slide_index"]], c["shape_path"])
             if sh:
                 old_v, new_v = PptxSurgicalEngine.update_numeric_badge(sh, total_company)
                 st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
-                regular_entries.append(
-                    ChangeLogEntry(
-                        c["slide_index"] + 1,
-                        str(c["shape_path"]),
-                        "Total Geral CNI",
-                        TargetType.HEADCOUNT_COMPANY_TOTAL,
-                        f"Total [{old_v}]",
-                        f"Total [{new_v}]",
-                        st,
-                        "Total Geral da Confederação",
-                    )
-                )
+                regular_entries.append(ChangeLogEntry(c["slide_index"] + 1, str(c["shape_path"]), "Total Geral CNI", TargetType.HEADCOUNT_COMPANY_TOTAL, f"Total [{old_v}]", f"Total [{new_v}]", st, "Total Geral da Confederação"))
 
         for s in self.config.get("segment_total_shapes", []):
             s_idx = int(s["slide_index"])
@@ -303,18 +283,7 @@ class PresentationUpdaterService:
             if sh and seg_name in seg_totals:
                 old_v, new_v = PptxSurgicalEngine.update_numeric_badge(sh, seg_totals[seg_name])
                 st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
-                regular_entries.append(
-                    ChangeLogEntry(
-                        s_idx + 1,
-                        s_path,
-                        f"Total Diretoria · {seg_name}",
-                        TargetType.HEADCOUNT_SEGMENT_TOTAL,
-                        f"Total [{old_v}]",
-                        f"Total [{new_v}]",
-                        st,
-                        f"Total Diretoria ({seg_name})",
-                    )
-                )
+                regular_entries.append(ChangeLogEntry(s_idx + 1, s_path, f"Total Diretoria · {seg_name}", TargetType.HEADCOUNT_SEGMENT_TOTAL, f"Total [{old_v}]", f"Total [{new_v}]", st, f"Total Diretoria ({seg_name})"))
 
         for a in self.config.get("area_subtotal_shapes", []):
             s_idx = int(a["slide_index"])
@@ -323,37 +292,13 @@ class PresentationUpdaterService:
             area_name = a["area"]
             sh = PptxSurgicalEngine.find_shape_by_path(prs.slides[s_idx], a_path)
             if sh and (seg_name, area_name) not in active_area_keys and (seg_name, area_name) not in cascaded_area_deltas:
-                old_sub = sh.text_frame.text.strip() if getattr(sh, "has_text_frame", False) else ""
                 PptxSurgicalEngine.remove_shapes_with_backdrop(prs.slides[s_idx], [a_path])
-                manual_entries.append(
-                    ChangeLogEntry(
-                        s_idx + 1,
-                        a_path,
-                        f"Subtotal Superintendência · {area_name}",
-                        TargetType.HEADCOUNT_AREA_SUBTOTAL,
-                        f"Subtotal [{old_sub}]",
-                        f"(Removido: área sem registros em {reference_label}) [0]",
-                        UpdateStatus.REMOVED_BOX,
-                        f"🗑️ Área extinta: selo de subtotal removido · {seg_name} › {area_name}",
-                    )
-                )
                 continue
             if sh:
                 val = area_totals.get((seg_name, area_name), 0)
                 old_v, new_v = PptxSurgicalEngine.update_numeric_badge(sh, val)
                 st = UpdateStatus.UPDATED_NUMBER if old_v != new_v else UpdateStatus.UNCHANGED
-                regular_entries.append(
-                    ChangeLogEntry(
-                        s_idx + 1,
-                        a_path,
-                        f"Subtotal Superintendência · {area_name}",
-                        TargetType.HEADCOUNT_AREA_SUBTOTAL,
-                        f"Subtotal [{old_v}]",
-                        f"Subtotal [{new_v}]",
-                        st,
-                        f"Subtotal Superintendência · {area_name}",
-                    )
-                )
+                regular_entries.append(ChangeLogEntry(s_idx + 1, a_path, f"Subtotal Superintendência · {area_name}", TargetType.HEADCOUNT_AREA_SUBTOTAL, f"Subtotal [{old_v}]", f"Subtotal [{new_v}]", st, f"Subtotal Superintendência · {area_name}"))
 
         for u in self.config.get("unit_boxes", []):
             s_idx = int(u["slide_index"])
@@ -362,23 +307,11 @@ class PresentationUpdaterService:
 
             if (s_idx, canonical_key) in removed_unit_keys:
                 rem_info = PptxSurgicalEngine.remove_unit_group_in_column(
-                    sl,
-                    canonical_key,
-                    compact_column=auto_layout,
-                    protected_paths=protected_paths.get(s_idx),
+                    sl, canonical_key, compact_column=auto_layout, protected_paths=protected_paths.get(s_idx)
                 )
                 old_txt = rem_info["old_text"] if rem_info else u["unidade"]
                 manual_entries.append(
-                    ChangeLogEntry(
-                        s_idx + 1,
-                        canonical_key,
-                        u["unidade"],
-                        TargetType.HEADCOUNT_UNIT,
-                        f"{old_txt} [Presente na Base Anterior]",
-                        f"(Removido do Slide: sem registro em {reference_label}) [0]",
-                        UpdateStatus.REMOVED_BOX,
-                        f"🗑️ Caixa sem registro na base ({reference_label}) removida do slide e coluna compactada · {u['segmento']} › {u['area']}",
-                    )
+                    ChangeLogEntry(s_idx + 1, canonical_key, u["unidade"], TargetType.HEADCOUNT_UNIT, f"{old_txt} [Presente na Base Anterior]", f"(Removido do Slide: sem registro em {reference_label}) [0]", UpdateStatus.REMOVED_BOX, f"🗑️ Caixa sem registro na base removida do slide e coluna compactada · {u['segmento']} › {u['area']}")
                 )
                 continue
 
@@ -405,51 +338,24 @@ class PresentationUpdaterService:
                     )
                 u["is_modified"] = True
                 PptxSurgicalEngine.apply_dashed_border_xml(top_grp_sh or name_sh, hex_color="164194")
-                manual_entries.append(
-                    ChangeLogEntry(
-                        s_idx + 1,
-                        canonical_key,
-                        u["unidade"],
-                        TargetType.HEADCOUNT_UNIT,
-                        f"{old_name} [{old_num}]",
-                        f"{new_name} [{new_num}]",
-                        UpdateStatus.UPDATED_NAME_AND_NUMBER,
-                        f"✏️ Editado manualmente · {u['segmento']} › {u['area']}",
-                    )
-                )
+                manual_entries.append(ChangeLogEntry(s_idx + 1, canonical_key, u["unidade"], TargetType.HEADCOUNT_UNIT, f"{old_name} [{old_num}]", f"{new_name} [{new_num}]", UpdateStatus.UPDATED_NAME_AND_NUMBER, f"✏️ Editado manualmente · {u['segmento']} › {u['area']}"))
             else:
                 target_rename = u.get("rename_to")
                 if target_rename and normalize_text_key(target_rename) != normalize_text_key(old_area_only):
-                    _, new_name = PptxSurgicalEngine.update_area_name_preserving_manager(
-                        name_sh, target_rename
-                    )
+                    _, new_name = PptxSurgicalEngine.update_area_name_preserving_manager(name_sh, target_rename)
                     u["is_modified"] = True
                     PptxSurgicalEngine.apply_dashed_border_xml(top_grp_sh or name_sh, hex_color="164194")
                     st = UpdateStatus.UPDATED_NAME_AND_NUMBER
                 else:
                     u["is_modified"] = False
                     st = UpdateStatus.UPDATED_NUMBER if old_num != new_num else UpdateStatus.UNCHANGED
+                regular_entries.append(ChangeLogEntry(s_idx + 1, canonical_key, u["unidade"], TargetType.HEADCOUNT_UNIT, f"{old_name} [{old_num}]", f"{new_name} [{new_num}]", st, f"Unidade · {u['segmento']} › {u['area']}"))
 
-                regular_entries.append(
-                    ChangeLogEntry(
-                        s_idx + 1,
-                        canonical_key,
-                        u["unidade"],
-                        TargetType.HEADCOUNT_UNIT,
-                        f"{old_name} [{old_num}]",
-                        f"{new_name} [{new_num}]",
-                        st,
-                        f"Unidade · {u['segmento']} › {u['area']}",
-                    )
-                )
-
-        # Filtra clonagens automáticas de caixas que o utilizador já adicionou explicitamente via formulário Web
         manual_add_names = {
             normalize_text_key(ov.get("new_area_name", ""))
             for ov in (custom_overrides or []) if ov.get("action") == "ADD"
         }
 
-        # 6A. Novas Caixas Clonadas Automáticas da Base
         for cl in self.config.get("cloned_new_boxes", []):
             if normalize_text_key(cl["display_name"]) in manual_add_names:
                 continue
@@ -486,43 +392,45 @@ class PresentationUpdaterService:
                     "is_new": True,
                 }
             )
+            regular_entries.append(ChangeLogEntry(s_idx + 1, f"{cloned_info['name_path']} | {cloned_info['badge_path']}", cl["display_name"], TargetType.HEADCOUNT_UNIT, "(Não existia no slide)", f"{cl['display_name']} {cl.get('manager_placeholder', '(Definir Gestor)')} [{val}]", UpdateStatus.CLONED_NEW_BOX, f"Nova estrutura criada (tracejada) · {cl['segmento']} › {cl['area']}"))
 
-            _slide_h = int(prs.slide_height or 6858000)
-            _grp = cloned_info.get("container_shape")
-            if _grp is not None and int(_grp.top) + int(_grp.height) > _slide_h:
-                sync_notes.append(
-                    f"⚠ Slide {s_idx + 1}: a nova caixa \"{cl['display_name']}\" ultrapassa a borda inferior do slide; reorganize a coluna."
-                )
+        # Proteção Dupla e Permissão para Criação na Macroestrutura (Slide 1)
+        processed_adds = set()
 
-            regular_entries.append(
-                ChangeLogEntry(
-                    s_idx + 1,
-                    f"{cloned_info['name_path']} | {cloned_info['badge_path']}",
-                    cl["display_name"],
-                    TargetType.HEADCOUNT_UNIT,
-                    "(Não existia no slide)",
-                    f"{cl['display_name']} {cl.get('manager_placeholder', '(Definir Gestor)')} [{val}]",
-                    UpdateStatus.CLONED_NEW_BOX,
-                    f"Nova estrutura criada (tracejada) · {cl['segmento']} › {cl['area']}",
-                )
-            )
-
-        # 6B. Novas Caixas Adicionadas Manualmente pelo Utilizador no Estúdio Web
         for add_req in custom_added_boxes:
             s_idx = int(add_req["slide_index"])
+            norm_name = normalize_text_key(add_req["new_area_name"])
+            dedup_key = (s_idx, norm_name)
+
+            if dedup_key in processed_adds:
+                continue
+            processed_adds.add(dedup_key)
+
+            already_exists = any(
+                normalize_text_key(u.get("unidade", "")) == norm_name and int(u.get("slide_index")) == s_idx
+                for u in self.config.get("unit_boxes", [])
+                if not u.get("force_remove")
+            )
+            if already_exists:
+                continue
+
             sl = prs.slides[s_idx]
             try:
-                role_code, _ = classify_organizational_node(
-                    add_req["segmento"], add_req["area"], add_req["new_area_name"]
-                )
+                tpl_id = str(add_req["template_shape_key"])
+                role_code, _ = classify_organizational_node(add_req["segmento"], add_req["area"], add_req["new_area_name"])
+                
+                if s_idx == 0:
+                    role_code = "MACROESTRUTURA"
+
                 cloned_info = PptxSurgicalEngine.clone_unit_group_in_column(
                     slide=sl,
-                    template_group_id=str(add_req["template_shape_key"]),
+                    template_group_id=tpl_id,
                     new_area_name=add_req["new_area_name"],
                     new_headcount=add_req["new_headcount"],
                     manager_placeholder=add_req["new_manager"],
                     role_code=role_code,
                 )
+                
                 self.config.setdefault("unit_boxes", []).append(
                     {
                         "slide_index": s_idx,
@@ -535,24 +443,13 @@ class PresentationUpdaterService:
                         "is_new": True,
                     }
                 )
-                manual_entries.append(
-                    ChangeLogEntry(
-                        s_idx + 1,
-                        f"{cloned_info['name_path']} | {cloned_info['badge_path']}",
-                        add_req["new_area_name"],
-                        TargetType.HEADCOUNT_UNIT,
-                        "(Nova Caixa Adicionada na Web)",
-                        f"{add_req['new_area_name']} {add_req['new_manager']} [{add_req['new_headcount']}]",
-                        UpdateStatus.CLONED_NEW_BOX,
-                        f"➕ Nova caixa tracejada criada pelo utilizador · {add_req['segmento']} › {add_req['area']}",
-                    )
-                )
+                manual_entries.append(ChangeLogEntry(s_idx + 1, f"{cloned_info['name_path']} | {cloned_info['badge_path']}", add_req["new_area_name"], TargetType.HEADCOUNT_UNIT, "(Nova Caixa Adicionada na Web)", f"{add_req['new_area_name']} {add_req['new_manager']} [{add_req['new_headcount']}]", UpdateStatus.CLONED_NEW_BOX, f"➕ Nova caixa tracejada criada pelo utilizador · {add_req['segmento']} › {add_req['area']}"))
             except Exception:
                 pass
 
         report.changes = manual_entries + cascade_entries + regular_entries + date_entries
 
-        # EXTRAÇÃO DO PREVIEW 16:9 ANTES DO SAVE PARA PREVENIR RE-ATRIBUIÇÃO DE IDS!
+        # Extração do Preview em tempo real antes de salvar, evitando quebra no Canvas
         report.slides_preview = PptxSurgicalEngine.extract_slides_preview(prs, self.config)
         report.validation_notes.extend(sync_notes)
 
